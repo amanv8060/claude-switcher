@@ -30,6 +30,9 @@ You need macOS 13+ and the Xcode command line tools (`xcode-select --install`). 
 - **Be conservative with user data.** Only touch the `claudeAiOauth` / `oauthAccount` keys and Claude Desktop's data folder. Back up before writing, and prefer renames to copies or deletes.
 - **Keep it dependency-free.** If you're adding a package, open an issue first.
 - Match the surrounding style. Small focused PRs are easiest to review.
+- Use [Conventional Commits](https://www.conventionalcommits.org/) for commit messages and PR
+  titles: `feat:`, `fix:`, `docs:`, `refactor:`, `style:`, `ci:`, `chore:`, with an optional scope
+  such as `feat(ui):`.
 
 ## UI changes
 
