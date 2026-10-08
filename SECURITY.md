@@ -10,6 +10,6 @@ Please **don't open a public issue**. Use [GitHub's private vulnerability report
 
 - **Saved logins** are stored in your login keychain under the service `ClaudeSwitcher`. Nothing secret is written to plain files.
 - **The account list** (`~/Library/Application Support/ClaudeSwitcher/state.json`) contains names, emails and account IDs, but no tokens.
-- **Network:** the app only talks to `api.anthropic.com` (usage) and `platform.claude.com` (token refresh), and only with the token for the account being asked about. There's no analytics or telemetry, and it doesn't contact any other server.
+- **Network:** the app only talks to `api.anthropic.com` (usage) and `platform.claude.com` (token refresh), and only with the token for the account being asked about. There's no analytics or telemetry. The only other request is the update check below.
 - **Update checks:** once a day the app asks `github.com/amanv8060/claude-switcher/releases/latest` which version is newest. No account data is sent. Turn it off under **Check for updates automatically** in settings.
 - **Files it changes:** the `Claude Code-credentials` keychain item (only the `claudeAiOauth` key), `~/.claude.json` (only `oauthAccount`, with a backup in `~/.claude.json.switcher-backup`), and Claude Desktop's data folder (renamed, never deleted, except when you remove a profile, which moves it to the Trash).
