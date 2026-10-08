@@ -107,6 +107,44 @@ enum ClaudeDesktop {
                            to: accountFolders(state))
     }
 
+    // MARK: Working folders
+
+    /// Folders sessions use as their working directory. They follow you from
+    /// profile to profile (moved, not copied) so a session's folder always exists.
+    static let carriedFolders = ["scratch-workspaces"]
+
+    static func carryWorkingFolders(from profileDir: URL, to liveDir: URL) {
+        for name in carriedFolders {
+            moveContents(profileDir.appendingPathComponent(name), into: liveDir.appendingPathComponent(name))
+        }
+    }
+
+    /// Moves everything in `src` into `dst`, merging folders. Never overwrites:
+    /// a file that exists on both sides stays where it is.
+    static func moveContents(_ src: URL, into dst: URL) {
+        guard isFolder(src) else { return }
+        if !fm.fileExists(atPath: dst.path) {
+            try? fm.createDirectory(at: dst.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try? fm.moveItem(at: src, to: dst)
+            return
+        }
+        guard isFolder(dst) else { return }
+        for child in children(src) {
+            let target = dst.appendingPathComponent(child.lastPathComponent)
+            if !fm.fileExists(atPath: target.path) {
+                try? fm.moveItem(at: child, to: target)
+            } else if isFolder(child), isFolder(target) {
+                moveContents(child, into: target)
+            }
+        }
+        if children(src).isEmpty { try? fm.removeItem(at: src) }
+    }
+
+    private static func isFolder(_ url: URL) -> Bool {
+        var dir: ObjCBool = false
+        return fm.fileExists(atPath: url.path, isDirectory: &dir) && dir.boolValue
+    }
+
     /// Gathers every profile's sessions into the shared store (reads only).
     static func collectAllSessions(_ state: AppState) {
         for p in state.desktop { collectSessions(from: folder(for: p, state: state)) }
@@ -203,6 +241,7 @@ enum ClaudeDesktop {
             throw error
         }
         state.activeDesktopID = target.id
+        carryWorkingFolders(from: dir(for: active), to: desktopLiveDir)
         mirrorIfEnabled(state)
         distributeSessions(into: desktopLiveDir)
         launch()
@@ -217,6 +256,7 @@ enum ClaudeDesktop {
         let p = DesktopProfile(id: UUID().uuidString, name: name, linkedAccountUuid: account)
         state.desktop.append(p)
         state.activeDesktopID = p.id
+        carryWorkingFolders(from: dir(for: active), to: desktopLiveDir)
         if state.shareSessionsAcrossAccounts {
             // Pre-fill the fresh profile so the shared chats are there after sign-in.
             mirrorIfEnabled(state)
