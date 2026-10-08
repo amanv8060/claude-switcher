@@ -29,6 +29,8 @@
   limits appear too, if your plan has them.
 - Suggests switching when another account has noticeably more room left.
 - Shows the current account and its session usage in the menu bar.
+- Optionally shows the same Claude Desktop Code sessions under every account (gear icon →
+  **Share Code sessions across accounts**).
 
 Shortcuts: <kbd>⌘1</kbd>–<kbd>⌘9</kbd> switch accounts while the popover is open. Right-click an
 account to rename or remove it.
@@ -63,6 +65,11 @@ A few things to know:
 
 - Claude Code sessions that are already running keep the old account until you restart them.
 - Switching Claude Desktop stops any chats or Code sessions running in it. You're asked first.
+- Continuing a session under a different account starts without the prompt cache, because
+  caches aren't shared between accounts. The first message after the switch re-processes the
+  whole conversation and uses noticeably more of the new account's limit; later messages are
+  cached again. To keep that cost down, switch between tasks rather than in the middle of a long
+  one, run `/compact` before moving a long session, and avoid switching back and forth.
 - Add accounts with **Add account** (it runs `claude auth login`). Don't use `claude auth logout`
   to change accounts: logging out can revoke the login the switcher saved.
 
