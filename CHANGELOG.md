@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.2.1] - 2026-10-09
+
+### Fixed
+
+- Sessions started in a scratch workspace reported that their working folder no longer existed
+  after a Claude Desktop switch. Working folders now move along with every switch.
+- **Add account** opened Terminal into "command not found" when Claude Code wasn't installed. It
+  now explains how to install it, and finds the `claude` command even when it isn't on your PATH.
+
 ## [1.2.0] - 2026-10-09
 
 ### Added
@@ -51,6 +60,7 @@ First release.
 - Plan names, ⌘1–⌘9 shortcuts, launch at login, and a menu bar label showing the current account
   and its session usage.
 
+[1.2.1]: https://github.com/amanv8060/claude-switcher/releases/tag/v1.2.1
 [1.2.0]: https://github.com/amanv8060/claude-switcher/releases/tag/v1.2.0
 [1.1.0]: https://github.com/amanv8060/claude-switcher/releases/tag/v1.1.0
 [1.0.1]: https://github.com/amanv8060/claude-switcher/releases/tag/v1.0.1
