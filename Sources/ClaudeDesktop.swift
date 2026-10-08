@@ -59,7 +59,8 @@ enum ClaudeDesktop {
         for p in state.desktop { collectSessions(from: folder(for: p, state: state)) }
     }
 
-    /// Copies files from `src` into `dst`, keeping whichever copy is newer. Never deletes.
+    /// Copies files from `src` into `dst`, keeping whichever copy is newer. The only
+    /// files it removes are sessions Desktop has marked as deleted.
     static func merge(_ src: URL, into dst: URL) {
         let src = src.resolvingSymlinksInPath()
         guard let files = fm.enumerator(at: src, includingPropertiesForKeys: [.isRegularFileKey]) else { return }
@@ -67,6 +68,7 @@ enum ClaudeDesktop {
             guard (try? file.resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true else { continue }
             let rel = file.resolvingSymlinksInPath().pathComponents.dropFirst(src.pathComponents.count)
             let target = rel.reduce(dst) { $0.appendingPathComponent($1) }
+            if isDeletedSession(file) || isDeletedSession(target) { continue }
             if let have = modified(target), let new = modified(file), have >= new { continue }
             do {
                 try fm.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -75,6 +77,25 @@ enum ClaudeDesktop {
             } catch {
                 NSLog("Claude Switcher: couldn't copy session file \(rel.joined(separator: "/")): \(error)")
             }
+        }
+        applyDeletions(in: dst)
+    }
+
+    /// Desktop deletes a session by removing `local_<id>.json` and leaving a
+    /// `deleted_<id>` marker next to it. Honour those markers so a session deleted
+    /// in one profile isn't copied back from another.
+    private static func isDeletedSession(_ url: URL) -> Bool {
+        let name = url.lastPathComponent
+        guard name.hasPrefix("local_"), name.hasSuffix(".json") else { return false }
+        let id = name.dropFirst("local_".count).dropLast(".json".count)
+        return fm.fileExists(atPath: url.deletingLastPathComponent().appendingPathComponent("deleted_\(id)").path)
+    }
+
+    /// Removes session files that have a deletion marker beside them.
+    private static func applyDeletions(in dir: URL) {
+        guard let files = fm.enumerator(at: dir, includingPropertiesForKeys: nil) else { return }
+        for case let file as URL in files where isDeletedSession(file) {
+            try? fm.removeItem(at: file)
         }
     }
 
