@@ -31,6 +31,9 @@ final class AppModel: ObservableObject {
         isPreview = false
         refresh()
         refreshUsage()
+        // Gather every profile's Code sessions into the shared store (reads profiles only).
+        let snapshot = state
+        DispatchQueue.global(qos: .utility).async { ClaudeDesktop.collectAllSessions(snapshot) }
         timer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.refreshUsage() }
         }
@@ -79,8 +82,32 @@ final class AppModel: ObservableObject {
     var activeCode: CodeProfile? { state.code.first { $0.key == activeKey } }
 
     func isCLIActive(_ a: Account) -> Bool { a.code != nil && a.code?.key == activeKey }
+    /// Only the profile that's actually live counts, even if another profile is
+    /// signed in to the same account.
     func isDesktopActive(_ a: Account) -> Bool {
-        desktopInstalled && a.accountUuid != nil && a.accountUuid == activeDesktopUuid
+        desktopInstalled && a.desktop != nil && a.desktop?.id == state.activeDesktopID
+    }
+
+    /// Desktop profiles signed in to a different account than the one they belong to.
+    var mismatchedProfiles: [DesktopProfile] { state.desktop.filter(\.isMismatched) }
+
+    /// "aman@example.com" for a known account ID, else a generic label.
+    func label(forAccount uuid: String?) -> String {
+        state.code.first { $0.key.hasPrefix((uuid ?? "-") + "|") }?.email ?? "another account"
+    }
+
+    /// Accept the account Desktop is now signed in to as this profile's account.
+    func relink(_ p: DesktopProfile) {
+        guard let i = state.desktop.firstIndex(where: { $0.id == p.id }) else { return }
+        state.desktop[i].linkedAccountUuid = state.desktop[i].accountUuid
+        state.save()
+    }
+
+    func renameProfile(_ p: DesktopProfile) {
+        guard let i = state.desktop.firstIndex(where: { $0.id == p.id }),
+              let n = ask("Rename Desktop profile", "", default: p.name) else { return }
+        state.desktop[i].name = n
+        state.save()
     }
 
     func name(_ a: Account) -> String { a.code?.name ?? a.desktop?.name ?? "Account" }
@@ -187,7 +214,7 @@ final class AppModel: ObservableObject {
             guard confirm("\(c.email) isn't signed in to Claude Desktop yet",
                           "Claude will quit and reopen signed out. Sign in as \(c.email) and it'll be linked to this account automatically. Your current Desktop login is kept.",
                           "Set Up Desktop") else { return }
-            try ClaudeDesktop.addNew(named: c.name, state: &state)
+            try ClaudeDesktop.addNew(named: c.name, for: uuid, state: &state)
         }
     }
 
@@ -221,7 +248,7 @@ final class AppModel: ObservableObject {
         guard let n = ask("Add a Claude Desktop login",
                           "Claude will quit and reopen signed out so you can sign in. Your current login is kept.",
                           default: "Work") else { return }
-        perform { try ClaudeDesktop.addNew(named: n, state: &state) }
+        perform { try ClaudeDesktop.addNew(named: n, for: nil, state: &state) }
     }
 
     func rename(_ a: Account) {
