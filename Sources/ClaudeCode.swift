@@ -81,6 +81,20 @@ enum ClaudeCode {
         try Data(try jsonString(cfg, pretty: true).utf8).write(to: claudeJSON, options: .atomic)
     }
 
+    /// Where the `claude` command lives: the common install locations, then the
+    /// user's login shell PATH. Nil when Claude Code isn't installed.
+    static func cliPath() -> String? {
+        let candidates = [home.appendingPathComponent(".local/bin/claude").path,
+                          "/opt/homebrew/bin/claude", "/usr/local/bin/claude"]
+        if let p = candidates.first(where: { fm.isExecutableFile(atPath: $0) }) { return p }
+        let shell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
+        let r = run(shell, ["-lc", "command -v claude"])
+        let p = r.out.trimmingCharacters(in: .whitespacesAndNewlines)
+        return r.status == 0 && fm.isExecutableFile(atPath: p) ? p : nil
+    }
+
+    static let installCommand = "curl -fsSL https://claude.ai/install.sh | bash"
+
     static func remove(_ p: CodeProfile, state: inout AppState) {
         Keychain.delete(service: switcherKeychainService, account: "code-" + p.id)
         state.code.removeAll { $0.id == p.id }

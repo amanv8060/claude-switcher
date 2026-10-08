@@ -242,12 +242,25 @@ final class AppModel: ObservableObject {
     // MARK: Account management
 
     func addAccount() {
+        guard let cli = ClaudeCode.cliPath() else {
+            let a = makeAlert("Claude Code isn't installed",
+                              "Adding an account signs in with the `claude` command, which comes with Claude Code (the Desktop app doesn't install it). Install it in Terminal with:\n\n\(ClaudeCode.installCommand)\n\nThen choose Add account again.")
+            a.addButton(withTitle: "Copy Install Command"); a.addButton(withTitle: "Cancel")
+            if a.runModal() == .alertFirstButtonReturn {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(ClaudeCode.installCommand, forType: .string)
+            }
+            return
+        }
         guard confirm("Add a Claude account",
                       "Your current login is saved. Terminal will run `claude auth login`. Sign in with the other account and it appears here. Clicking it the first time offers to sign Claude Desktop in too.\n\nDon't use “logout” to change accounts: it can revoke the saved login.",
                       "Open Terminal") else { return }
         perform {
             try ClaudeCode.snapshot(into: &state)
-            let script = "tell application \"Terminal\"\n activate\n do script \"claude auth login\"\nend tell"
+            // Full path, so it works even when ~/.local/bin isn't on Terminal's PATH.
+            let command = "'\(cli.replacingOccurrences(of: "'", with: "'\\''"))' auth login"
+            let escaped = command.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+            let script = "tell application \"Terminal\"\n activate\n do script \"\(escaped)\"\nend tell"
             var err: NSDictionary?
             NSAppleScript(source: script)?.executeAndReturnError(&err)
             if let err { throw SwitcherError("Couldn't open Terminal: \(err)") }
