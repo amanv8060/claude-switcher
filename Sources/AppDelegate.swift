@@ -199,11 +199,11 @@ struct PreviewScene: View {
             .background(dark ? Color.black.opacity(0.35) : Color.white.opacity(0.45))
 
             PopoverView(model: model)
-                .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(dark ? Color(white: 0.17) : Color(white: 0.975)))
-                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(dark ? 0.15 : 0.08)))
-                .shadow(color: .black.opacity(dark ? 0.5 : 0.18), radius: 24, y: 10)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(dark ? 0.14 : 0.07)))
+                .compositingGroup()
+                .shadow(color: .black.opacity(dark ? 0.45 : 0.14), radius: 18, y: 8)
                 .padding(.trailing, 74)
                 .padding(.bottom, 40)
         }

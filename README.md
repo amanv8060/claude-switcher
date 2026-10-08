@@ -21,15 +21,15 @@
 
 - **One click switches everywhere.** Clicking an account switches the Claude Code CLI right away,
   then switches the Claude Desktop app (and its Code tab) to the same account.
-- **Usage limits for every account.** The active account shows its session (5-hour) and weekly
-  limits as ring gauges. Other accounts show theirs as bars, including Opus and Sonnet weekly
-  limits on plans that have them, with reset times.
-- **Smart switch.** Points you to the account with the most room left, judged by whichever of
-  its limits is closer to running out, and switches to it in one click.
-- **Pace.** A tick on each gauge marks how much of that limit's time window has passed, so you can
-  see whether you're using it faster or slower than time is passing.
-- **Plan badges and shortcuts.** Badges show Pro, Max 5x or Max 20x. ⌘1–⌘9 switch accounts while
-  the popover is open.
+- **Usage limits for every account.** Shows session (5-hour) and weekly limits, plus Opus and
+  Sonnet weekly limits on plans that have them, with reset times. Bars stay grey until a limit
+  gets close, then turn amber and red.
+- **Switch suggestion.** When another account has noticeably more room left, a
+  **Switch to …** button appears. "Room" means whichever of that account's limits is closer to
+  running out.
+- **Pace in tooltips.** Hover a bar to see when it resets and whether you're using it faster or
+  slower than time is passing.
+- **Keyboard shortcuts.** ⌘1–⌘9 switch accounts while the popover is open.
 - **Usage in the menu bar.** The menu bar shows the active account and its session usage, for
   example `Personal · 34%`.
 - **No extra sign-in.** Desktop logins are matched to CLI logins automatically by account ID.
@@ -71,18 +71,17 @@ and opens it. Run `./build.sh` on its own to build into `./build` without instal
 | To… | Do this |
 | --- | --- |
 | Add an account | **Add account** → sign in with `claude auth login` in the Terminal window that opens. |
-| Switch | Click the account's card, press ⌘1–⌘9, or use **Smart switch**. |
+| Switch | Click an account, press ⌘1–⌘9, or use the **Switch to …** suggestion. |
 | Set up Claude Desktop for an account | Switch to it once. If it has never signed in to Desktop, you'll be offered to set it up. |
-| Rename or remove | Right-click a card. |
+| Rename or remove | Right-click an account. |
 | Settings | Click the gear icon (menu bar text, confirmations, launch at login). |
 
 > [!IMPORTANT]
 > Don't use `claude auth logout` to change accounts. Logging out can revoke the saved login.
 > Use **Add account** instead.
 
-The badges on each card show where that account is active:
-<kbd>● CLI</kbd> means the Claude Code CLI is using it, and <kbd>● Desktop</kbd> means the
-Claude Desktop app is using it.
+The current account shows where it's active, for example *Active in Claude Code and Desktop*.
+If Claude Desktop is on a different account, click **Use in Desktop too** to bring it in line.
 
 ## How it works
 

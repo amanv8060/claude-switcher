@@ -1,16 +1,27 @@
 import SwiftUI
 
+// One accent (clay) for the main action and the current-account marker.
+// Usage bars stay neutral and only turn amber/red when a limit is close.
 extension Color {
-    static let brand = Color(red: 0.851, green: 0.467, blue: 0.341)
-    // Clay (brand) marks identity: the active account, badges, primary actions.
-    // Green / amber / red mark usage health only.
-    static let good = Color(red: 0.24, green: 0.62, blue: 0.49)
-    static let warn = Color(red: 0.89, green: 0.64, blue: 0.23)
-    static let bad = Color(red: 0.85, green: 0.33, blue: 0.29)
+    static let brand = Color(red: 0.80, green: 0.42, blue: 0.29)
+    static let warn = Color(red: 0.85, green: 0.58, blue: 0.16)
+    static let bad = Color(red: 0.82, green: 0.30, blue: 0.26)
 
-    /// Green until 70%, then amber, then red from 90%.
+    /// Three deliberate text levels.
+    static let text1 = Color.primary.opacity(0.88)
+    static let text2 = Color.primary.opacity(0.62)
+    static let text3 = Color.primary.opacity(0.45)
+
     static func usage(_ fraction: Double) -> Color {
-        fraction >= 0.9 ? .bad : fraction >= 0.7 ? .warn : .good
+        fraction >= 0.9 ? .bad : fraction >= 0.7 ? .warn : Color.primary.opacity(0.42)
+    }
+}
+
+/// Warm off-white window, deep warm grey in dark mode.
+struct WindowBackground: View {
+    @Environment(\.colorScheme) private var scheme
+    var body: some View {
+        scheme == .dark ? Color(red: 0.155, green: 0.148, blue: 0.140) : Color(red: 0.985, green: 0.978, blue: 0.968)
     }
 }
 
@@ -28,91 +39,78 @@ struct PopoverView: View {
         VStack(spacing: 0) {
             header
             if let hero = model.hero {
-                HeroCard(model: model, account: hero)
-                    .padding(.horizontal, 12)
+                CurrentAccount(model: model, account: hero).padding(.horizontal, 8)
             } else {
                 emptyState
             }
             if let pick = model.smartPick {
-                SmartSwitch(model: model, account: pick.account, remaining: pick.remaining)
-                    .padding(.horizontal, 12).padding(.top, 10)
+                Divider().padding(.horizontal, 16).padding(.top, 8)
+                Recommendation(model: model, account: pick.account, remaining: pick.remaining)
             }
             if !model.others.isEmpty {
-                SectionLabel("Other accounts").padding(.top, 14).padding(.bottom, 6)
-                VStack(spacing: 8) {
+                Text("Other accounts")
+                    .font(.system(size: 11, weight: .medium)).foregroundStyle(Color.text2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 4)
+                VStack(spacing: 0) {
                     ForEach(Array(model.others.enumerated()), id: \.element.id) { i, a in
-                        AccountCard(model: model, account: a, shortcut: i + 2)
+                        if i > 0 { Divider().padding(.leading, 54).padding(.trailing, 16) }
+                        AccountRow(model: model, account: a, shortcut: i + 2)
                     }
                 }
-                .padding(.horizontal, 12)
             }
-            footer.padding(.top, 14)
+            Divider().padding(.top, 8)
+            footer
         }
         .frame(width: 360)
+        .background(WindowBackground())
         .overlay { if model.busy { BusyOverlay() } }
         .background(shortcuts)
     }
 
     private var header: some View {
-        HStack(spacing: 10) {
-            Image(nsImage: appLogo).resizable().frame(width: 30, height: 30)
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Claude Switcher").font(.system(size: 13, weight: .semibold))
-                Text(updatedText).font(.system(size: 11)).foregroundStyle(.secondary)
-            }
+        HStack(spacing: 8) {
+            Image(nsImage: appLogo).resizable().frame(width: 22, height: 22)
+            Text("Claude Switcher").font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.text1)
             Spacer()
+            Text(updatedText).font(.system(size: 11)).foregroundStyle(Color.text3)
             IconButton(symbol: "arrow.clockwise", help: "Refresh usage", spinning: model.isLoadingUsage) {
                 model.refresh(); model.refreshUsage()
             }
             IconButton(symbol: "gearshape", help: "Settings", action: onSettings)
         }
-        .padding(.horizontal, 14)
-        .padding(.top, 12)
-        .padding(.bottom, 10)
+        .padding(.leading, 16).padding(.trailing, 10)
+        .padding(.vertical, 12)
     }
 
     private var updatedText: String {
-        if model.lastUsageFetch == .distantPast { return "Usage not loaded yet" }
+        if model.lastUsageFetch == .distantPast { return "" }
         let s = Date().timeIntervalSince(model.lastUsageFetch)
-        return s < 60 ? "Updated just now" : "Updated \(Int(s / 60)) min ago"
+        return s < 60 ? "Updated now" : "Updated \(Int(s / 60))m ago"
     }
 
     private var emptyState: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "person.crop.circle.badge.plus")
-                .font(.system(size: 34, weight: .light)).foregroundStyle(Color.brand)
-            Text("No accounts yet").font(.system(size: 14, weight: .semibold))
-            Text("Sign in to Claude Code and your account\nwill show up here.")
-                .font(.system(size: 11.5)).foregroundStyle(.secondary).multilineTextAlignment(.center)
+        VStack(spacing: 4) {
+            Text("No accounts yet").font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.text1)
+            Text("Sign in to Claude Code and it shows up here.")
+                .font(.system(size: 12)).foregroundStyle(Color.text2)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 28)
+        .padding(.vertical, 32)
     }
 
     private var footer: some View {
-        HStack {
-            Button(action: model.addAccount) {
-                Label("Add account", systemImage: "plus")
-                    .font(.system(size: 12, weight: .semibold))
-                    .padding(.horizontal, 10).padding(.vertical, 5)
-                    .background(Capsule().fill(Color.brand.opacity(0.12)))
-                    .foregroundStyle(Color.brand)
-            }
-            .buttonStyle(.plain)
+        HStack(spacing: 16) {
+            QuietButton(title: "Add account", symbol: "plus", action: model.addAccount)
             Spacer()
-            if model.others.count > 0 {
-                Text("⌘2–\(min(model.others.count + 1, 9)) to switch")
-                    .font(.system(size: 10.5)).foregroundStyle(.tertiary)
-                Spacer()
+            if !model.others.isEmpty {
+                Text("⌘1–\(min(model.others.count + 1, 9)) to switch")
+                    .font(.system(size: 11)).foregroundStyle(Color.text2)
             }
-            Button(action: onQuit) {
-                Text("Quit").font(.system(size: 12)).foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-            .keyboardShortcut("q")
+            QuietButton(title: "Quit", action: onQuit).keyboardShortcut("q")
         }
-        .padding(.horizontal, 14)
-        .padding(.bottom, 12)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
     }
 
     /// Invisible buttons that give ⌘1…⌘9 to the accounts in display order.
@@ -129,253 +127,125 @@ struct PopoverView: View {
     }
 }
 
-// MARK: - Active account
+// MARK: - Current account
 
-struct HeroCard: View {
+struct CurrentAccount: View {
     @ObservedObject var model: AppModel
     let account: Account
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 12) {
-                Avatar(name: model.name(account), seed: account.accountUuid ?? account.id, size: 42, ring: true)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                Avatar(name: model.name(account), seed: account.accountUuid ?? account.id, size: 32)
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
-                        Text(model.name(account)).font(.system(size: 15, weight: .semibold)).lineLimit(1)
-                        if let plan = account.code.flatMap({ model.plans[$0.id] }) { PlanPill(text: plan) }
+                        Text(model.name(account)).font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.text1)
+                        HStack(spacing: 4) {
+                            Circle().fill(Color.brand).frame(width: 6, height: 6)
+                            Text("Current").font(.system(size: 11, weight: .medium)).foregroundStyle(Color.brand)
+                        }
                     }
-                    Text(model.subtitle(account))
-                        .font(.system(size: 11.5)).foregroundStyle(.secondary)
-                        .lineLimit(1).truncationMode(.middle)
+                    Text(detailLine).font(.system(size: 11.5)).foregroundStyle(Color.text2).lineLimit(1)
                 }
                 Spacer(minLength: 0)
             }
             usage
             activeIn
         }
-        .padding(14)
-        .background(shape.fill(LinearGradient(colors: [Color.brand.opacity(0.13), Color.brand.opacity(0.05)],
-                                              startPoint: .topLeading, endPoint: .bottomTrailing)))
-        .overlay(shape.strokeBorder(Color.brand.opacity(0.28), lineWidth: 1))
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.brand.opacity(0.06)))
+    }
+
+    private var detailLine: String {
+        let plan = account.code.flatMap { model.plans[$0.id] }
+        return [model.subtitle(account), plan].compactMap { $0 }.joined(separator: " · ")
     }
 
     @ViewBuilder private var usage: some View {
         if let c = account.code {
             switch model.usage[c.id] {
             case .ok(let windows, _) where !windows.isEmpty:
-                let main = windows.filter { $0.label == "Session" || $0.label == "Week" }
-                let extra = windows.filter { $0.label != "Session" && $0.label != "Week" }
-                HStack(spacing: 0) {
-                    ForEach(main, id: \.label) { Gauge(window: $0).frame(maxWidth: .infinity) }
-                }
-                if !extra.isEmpty {
-                    VStack(spacing: 6) { ForEach(extra, id: \.label) { BarRow(window: $0) } }
-                }
+                VStack(spacing: 10) { ForEach(windows, id: \.label) { UsageLine(window: $0, large: true) } }
             case .ok:
-                Note(text: "No usage limits reported for this plan", symbol: "infinity")
+                Note(text: "No usage limits reported for this plan")
             case .failed(let msg):
-                Note(text: msg, symbol: "exclamationmark.triangle.fill", tint: .warn)
+                Note(text: msg, warning: true)
             case .loading, nil:
-                HStack(spacing: 0) {
-                    Gauge.placeholder("Session").frame(maxWidth: .infinity)
-                    Gauge.placeholder("Weekly").frame(maxWidth: .infinity)
-                }
+                Note(text: "Loading usage…")
             }
         } else {
-            Note(text: "Add a Claude Code login for this account to see usage", symbol: "chart.bar.xaxis")
+            Note(text: "Add a Claude Code login for this account to see usage.")
         }
     }
 
     private var activeIn: some View {
         let cli = model.isCLIActive(account), desktop = model.isDesktopActive(account)
+        let places = [cli ? "Claude Code" : nil, desktop ? "Desktop" : nil].compactMap { $0 }
         return HStack(spacing: 6) {
-            Text("Active in").font(.system(size: 10.5)).foregroundStyle(.secondary)
-            if account.code != nil { StatusChip(text: "Claude Code", symbol: "terminal", on: cli) }
-            if model.desktopInstalled { StatusChip(text: "Desktop", symbol: "macwindow", on: desktop) }
+            Text(places.isEmpty ? "Not active anywhere" : "Active in " + places.joined(separator: " and "))
+                .font(.system(size: 11.5)).foregroundStyle(Color.text2)
             Spacer(minLength: 0)
             if model.desktopInstalled && !desktop && account.code != nil {
-                Button { model.switchTo(account) } label: {
-                    Label("Sync Desktop", systemImage: "arrow.triangle.2.circlepath")
-                        .font(.system(size: 10.5, weight: .semibold)).foregroundStyle(Color.brand)
-                }
-                .buttonStyle(.plain)
-                .help("Switch Claude Desktop to this account too")
+                Button("Use in Desktop too") { model.switchTo(account) }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 11.5, weight: .medium)).foregroundStyle(Color.brand)
             }
         }
     }
 }
 
-/// A ring gauge with the percentage in the middle, reset time and pace below.
-struct Gauge: View {
-    let window: ClaudeAPI.Window
+// MARK: - Recommendation
 
-    var body: some View {
-        let f = window.utilization / 100
-        VStack(spacing: 6) {
-            ZStack {
-                Ring(value: f, pace: window.elapsed, size: 76, lineWidth: 8)
-                VStack(spacing: -1) {
-                    Text("\(Int(window.utilization.rounded()))%")
-                        .font(.system(size: 19, weight: .bold, design: .rounded).monospacedDigit())
-                    Text(window.label == "Session" ? "Session" : "Weekly")
-                        .font(.system(size: 9.5, weight: .medium)).foregroundStyle(.secondary)
-                }
-            }
-            VStack(spacing: 1) {
-                Text(resetText(window.resetsAt))
-                    .font(.system(size: 10.5).monospacedDigit()).foregroundStyle(.secondary)
-                PaceText(window: window)
-            }
-        }
-    }
-
-    static func placeholder(_ label: String) -> some View {
-        VStack(spacing: 6) {
-            ZStack {
-                Ring(value: 0, pace: nil, size: 76, lineWidth: 8)
-                Text(label).font(.system(size: 10, weight: .medium)).foregroundStyle(.tertiary)
-            }
-            Text("Loading…").font(.system(size: 10.5)).foregroundStyle(.tertiary)
-        }
-    }
-}
-
-struct Ring: View {
-    let value: Double
-    let pace: Double?
-    let size: CGFloat
-    let lineWidth: CGFloat
-
-    var body: some View {
-        let v = min(max(value, 0), 1)
-        let tint = Color.usage(v)
-        ZStack {
-            Circle().stroke(Color.primary.opacity(0.08), lineWidth: lineWidth)
-            Circle()
-                .trim(from: 0, to: v)
-                .stroke(AngularGradient(colors: [tint.opacity(0.55), tint], center: .center,
-                                        startAngle: .degrees(0), endAngle: .degrees(360 * max(v, 0.01))),
-                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-            if let pace {
-                // Where usage would be if spread evenly over the window.
-                Capsule()
-                    .fill(Color.primary.opacity(0.7))
-                    .frame(width: 2, height: lineWidth + 5)
-                    .offset(y: -size / 2)
-                    .rotationEffect(.degrees(360 * pace))
-            }
-        }
-        .frame(width: size, height: size)
-    }
-}
-
-struct PaceText: View {
-    let window: ClaudeAPI.Window
-
-    var body: some View {
-        if let elapsed = window.elapsed {
-            let diff = window.utilization - elapsed * 100
-            let (text, color): (String, Color) =
-                abs(diff) < 5 ? ("On pace", .secondary)
-                : diff < 0 ? ("\(Int(-diff))% under pace", .good)
-                : ("\(Int(diff))% over pace", .warn)
-            Text(text).font(.system(size: 10, weight: .medium)).foregroundStyle(color)
-                .help("The tick on the ring marks how much of this window has passed.")
-        }
-    }
-}
-
-// MARK: - Smart switch
-
-struct SmartSwitch: View {
+struct Recommendation: View {
     @ObservedObject var model: AppModel
     let account: Account
     let remaining: Double
-    @State private var hover = false
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
-        Button { model.switchTo(account) } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Color.good)
-                    .frame(width: 28, height: 28)
-                    .background(Circle().fill(Color.good.opacity(0.15)))
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("\(model.name(account)) has the most room")
-                        .font(.system(size: 12, weight: .semibold)).lineLimit(1)
-                    Text("\(Int(remaining.rounded()))% left before its next limit")
-                        .font(.system(size: 10.5)).foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 4)
-                Text("Smart switch")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 10).padding(.vertical, 5)
-                    .background(Capsule().fill(Color.good.opacity(hover ? 1 : 0.9)))
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(model.name(account)) · \(Int(remaining.rounded()))% remaining")
+                    .font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Color.text1)
+                Text("Most room before its next limit")
+                    .font(.system(size: 11.5)).foregroundStyle(Color.text2)
             }
-            .padding(.horizontal, 10).padding(.vertical, 8)
-            .background(shape.fill(Color.good.opacity(hover ? 0.13 : 0.09)))
-            .overlay(shape.strokeBorder(Color.good.opacity(0.3), lineWidth: 1))
-            .contentShape(shape)
+            Spacer(minLength: 8)
+            PrimaryButton(title: "Switch to \(model.name(account))") { model.switchTo(account) }
         }
-        .buttonStyle(.plain)
-        .onHover { hover = $0 }
-        .help("Switch to the account with the most usage left (the tighter of its session and weekly limits)")
+        .padding(.horizontal, 16).padding(.vertical, 12)
+        .help("Based on whichever of its session and weekly limits is closer to running out")
     }
 }
 
 // MARK: - Other accounts
 
-struct AccountCard: View {
+struct AccountRow: View {
     @ObservedObject var model: AppModel
     let account: Account
     let shortcut: Int
     @State private var hover = false
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
-        HStack(alignment: .top, spacing: 11) {
-            Avatar(name: model.name(account), seed: account.accountUuid ?? account.id, size: 34, ring: false)
+        HStack(alignment: .top, spacing: 10) {
+            Avatar(name: model.name(account), seed: account.accountUuid ?? account.id, size: 28)
             VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .top, spacing: 6) {
-                    VStack(alignment: .leading, spacing: 1) {
-                        HStack(spacing: 5) {
-                            Text(model.name(account)).font(.system(size: 13, weight: .semibold)).lineLimit(1)
-                            if let plan = account.code.flatMap({ model.plans[$0.id] }) { PlanPill(text: plan, subtle: true) }
-                        }
-                        Text(model.subtitle(account))
-                            .font(.system(size: 11)).foregroundStyle(.secondary)
-                            .lineLimit(1).truncationMode(.middle)
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(model.name(account)).font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.text1)
+                    if let plan = account.code.flatMap({ model.plans[$0.id] }) {
+                        Text(plan).font(.system(size: 11)).foregroundStyle(Color.text2)
                     }
                     Spacer(minLength: 4)
-                    if hover {
-                        Text(shortcut <= 9 ? "Switch ⌘\(shortcut)" : "Switch")
-                            .font(.system(size: 10.5, weight: .semibold)).foregroundStyle(.white)
-                            .padding(.horizontal, 8).padding(.vertical, 3)
-                            .background(Capsule().fill(Color.brand))
-                    } else {
-                        HStack(spacing: 4) {
-                            if account.code != nil { Badge(text: "CLI", on: model.isCLIActive(account)) }
-                            if model.desktopInstalled && account.desktop != nil {
-                                Badge(text: "Desktop", on: model.isDesktopActive(account))
-                            }
-                        }
-                    }
+                    Text(hover ? (shortcut <= 9 ? "Switch  ⌘\(shortcut)" : "Switch") : "")
+                        .font(.system(size: 11.5, weight: .medium)).foregroundStyle(Color.brand)
                 }
                 usage
             }
         }
-        .padding(11)
-        .background(shape.fill(Color.primary.opacity(hover ? 0.075 : 0.04)))
-        .overlay(shape.strokeBorder(Color.primary.opacity(hover ? 0.12 : 0.07), lineWidth: 1))
-        .contentShape(shape)
+        .padding(.horizontal, 16).padding(.vertical, 12)
+        .background(Color.primary.opacity(hover ? 0.04 : 0))
+        .contentShape(Rectangle())
         .onHover { hover = $0 }
         .onTapGesture { model.switchTo(account) }
-        .animation(.easeOut(duration: 0.12), value: hover)
         .contextMenu {
             Button("Switch to \(model.name(account))") { model.switchTo(account) }
             Button("Rename…") { model.rename(account) }
@@ -388,39 +258,43 @@ struct AccountCard: View {
         if let c = account.code {
             switch model.usage[c.id] {
             case .ok(let windows, _) where !windows.isEmpty:
-                VStack(spacing: 6) { ForEach(windows, id: \.label) { UsageLine(window: $0) } }
+                VStack(spacing: 6) { ForEach(windows, id: \.label) { UsageLine(window: $0, large: false) } }
             case .ok:
-                Note(text: "No usage limits reported", symbol: "infinity")
+                Note(text: "No usage limits reported")
             case .failed(let msg):
-                Note(text: msg, symbol: "exclamationmark.triangle.fill", tint: .warn)
+                Note(text: msg, warning: true)
             case .loading, nil:
-                Note(text: "Loading usage…", symbol: "hourglass")
+                Note(text: "Loading usage…")
             }
         } else {
-            Note(text: "Add a Claude Code login to see usage", symbol: "chart.bar.xaxis")
+            Note(text: model.subtitle(account))
         }
     }
 }
 
-/// One limit as a labelled bar with percentage and reset time.
+// MARK: - Usage
+
+/// One limit: label, bar, percentage, reset time. Pace lives in the tooltip.
 struct UsageLine: View {
     let window: ClaudeAPI.Window
+    let large: Bool
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             Text(label)
-                .font(.system(size: 11)).foregroundStyle(.secondary)
-                .frame(width: 46, alignment: .leading)
-            Meter(value: window.utilization / 100, pace: window.elapsed, height: 6)
+                .font(.system(size: large ? 12 : 11.5)).foregroundStyle(Color.text2)
+                .frame(width: 52, alignment: .leading)
+            Meter(value: window.utilization / 100, height: large ? 6 : 4)
             Text("\(Int(window.utilization.rounded()))%")
-                .font(.system(size: 11, weight: .semibold).monospacedDigit())
-                .frame(width: 34, alignment: .trailing)
+                .font(.system(size: large ? 13 : 12, weight: .semibold).monospacedDigit())
+                .foregroundStyle(Color.text1)
+                .frame(width: 38, alignment: .trailing)
             Text(shortReset)
-                .font(.system(size: 10.5).monospacedDigit()).foregroundStyle(.tertiary)
+                .font(.system(size: 11).monospacedDigit()).foregroundStyle(Color.text2)
                 .lineLimit(1).fixedSize()
-                .frame(width: 58, alignment: .trailing)
+                .frame(width: 56, alignment: .trailing)
         }
-        .help(resetText(window.resetsAt))
+        .help(tooltip)
     }
 
     private var label: String {
@@ -439,43 +313,18 @@ struct UsageLine: View {
         let f = DateFormatter(); f.dateFormat = "EEE ha"
         return f.string(from: d)
     }
-}
 
-struct Badge: View {
-    let text: String
-    let on: Bool
-
-    var body: some View {
-        HStack(spacing: 3) {
-            if on { Circle().fill(Color.white).frame(width: 4, height: 4) }
-            Text(text)
+    private var tooltip: String {
+        var parts = [resetText(window.resetsAt)]
+        if let e = window.elapsed {
+            let diff = window.utilization - e * 100
+            parts.append(abs(diff) < 5 ? "On pace"
+                         : diff < 0 ? "\(Int(-diff))% under pace" : "\(Int(diff))% over pace")
+            parts.append("\(Int(e * 100))% of this window has passed")
         }
-        .font(.system(size: 9.5, weight: .semibold))
-        .padding(.horizontal, 6).padding(.vertical, 2.5)
-        .foregroundStyle(on ? Color.white : Color.secondary)
-        .background(Capsule().fill(on ? Color.brand : Color.primary.opacity(0.08)))
-        .help(on ? "\(text) is using this account" : "\(text) is on another account")
+        return parts.joined(separator: " · ")
     }
 }
-
-/// Full-width bar for extra limits (Opus, Sonnet).
-struct BarRow: View {
-    let window: ClaudeAPI.Window
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Text(window.label.replacingOccurrences(of: "Week · ", with: "") + " weekly")
-                .font(.system(size: 11)).foregroundStyle(.secondary)
-                .frame(width: 84, alignment: .leading)
-            Meter(value: window.utilization / 100, pace: window.elapsed, height: 6)
-            Text("\(Int(window.utilization.rounded()))%")
-                .font(.system(size: 11, weight: .semibold).monospacedDigit())
-                .frame(width: 34, alignment: .trailing)
-        }
-    }
-}
-
-// MARK: - Small components
 
 func resetText(_ d: Date?) -> String {
     guard let d else { return "" }
@@ -488,113 +337,59 @@ func resetText(_ d: Date?) -> String {
 
 struct Meter: View {
     let value: Double
-    var pace: Double? = nil
     var height: CGFloat = 6
 
     var body: some View {
         GeometryReader { g in
             let v = min(max(value, 0), 1)
             ZStack(alignment: .leading) {
-                Capsule().fill(Color.primary.opacity(0.09))
-                Capsule()
-                    .fill(LinearGradient(colors: [Color.usage(v).opacity(0.7), Color.usage(v)],
-                                         startPoint: .leading, endPoint: .trailing))
-                    .frame(width: max(height, g.size.width * v))
-                if let pace {
-                    Capsule().fill(Color.primary.opacity(0.55))
-                        .frame(width: 1.5, height: height + 4)
-                        .offset(x: g.size.width * pace - 0.75)
-                }
+                Capsule().fill(Color.primary.opacity(0.08))
+                Capsule().fill(Color.usage(v)).frame(width: max(height, g.size.width * v))
             }
         }
         .frame(height: height)
     }
 }
 
-struct PlanPill: View {
-    let text: String
-    var subtle = false
-
-    var body: some View {
-        Text(text)
-            .font(.system(size: 9, weight: .bold))
-            .padding(.horizontal, 5).padding(.vertical, 1.5)
-            .foregroundStyle(subtle ? Color.secondary : Color.brand)
-            .background(Capsule().fill(subtle ? Color.primary.opacity(0.07) : Color.brand.opacity(0.15)))
-    }
-}
-
-struct StatusChip: View {
-    let text: String
-    let symbol: String
-    let on: Bool
-
-    var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: on ? "checkmark.circle.fill" : "circle.dashed")
-            Text(text)
-        }
-        .font(.system(size: 10.5, weight: .semibold))
-        .padding(.horizontal, 7).padding(.vertical, 3)
-        .foregroundStyle(on ? Color.brand : Color.secondary)
-        .background(Capsule().fill(on ? Color.brand.opacity(0.14) : Color.primary.opacity(0.06)))
-        .help(on ? "\(text) is using this account" : "\(text) is on another account")
-    }
-}
+// MARK: - Small components
 
 struct Note: View {
     let text: String
-    let symbol: String
-    var tint: Color = .secondary
+    var warning = false
 
     var body: some View {
-        HStack(alignment: .top, spacing: 6) {
-            Image(systemName: symbol).foregroundStyle(tint)
-            Text(text).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            if warning { Image(systemName: "exclamationmark.triangle").foregroundStyle(Color.warn) }
+            Text(text).foregroundStyle(Color.text2).fixedSize(horizontal: false, vertical: true)
         }
         .font(.system(size: 11.5))
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
-struct SectionLabel: View {
-    let text: String
-    init(_ t: String) { text = t }
-
-    var body: some View {
-        Text(text.uppercased())
-            .font(.system(size: 10, weight: .semibold)).tracking(0.6)
-            .foregroundStyle(.tertiary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 18)
-    }
-}
-
+/// Flat initials on a quiet tinted circle.
 struct Avatar: View {
     let name: String
     let seed: String
     let size: CGFloat
-    let ring: Bool
+    @Environment(\.colorScheme) private var scheme
 
-    // Muted, warm-leaning tones so avatars sit quietly next to the clay accent.
-    private static let palettes: [(Color, Color)] = [
-        (Color(red: 0.82, green: 0.58, blue: 0.47), Color(red: 0.66, green: 0.40, blue: 0.31)), // clay
-        (Color(red: 0.55, green: 0.62, blue: 0.75), Color(red: 0.38, green: 0.45, blue: 0.60)), // slate
-        (Color(red: 0.52, green: 0.68, blue: 0.60), Color(red: 0.34, green: 0.51, blue: 0.44)), // sage
-        (Color(red: 0.70, green: 0.58, blue: 0.72), Color(red: 0.52, green: 0.40, blue: 0.56)), // plum
-        (Color(red: 0.80, green: 0.69, blue: 0.48), Color(red: 0.62, green: 0.51, blue: 0.31)), // sand
+    private static let hues: [Color] = [
+        Color(red: 0.70, green: 0.40, blue: 0.29), // clay
+        Color(red: 0.33, green: 0.42, blue: 0.58), // slate
+        Color(red: 0.31, green: 0.50, blue: 0.42), // sage
+        Color(red: 0.52, green: 0.38, blue: 0.56), // plum
+        Color(red: 0.60, green: 0.48, blue: 0.26), // sand
     ]
 
     var body: some View {
-        let p = Self.palettes[abs(seed.unicodeScalars.reduce(0) { $0 &* 31 &+ Int($1.value) }) % Self.palettes.count]
+        let hue = Self.hues[abs(seed.unicodeScalars.reduce(0) { $0 &* 31 &+ Int($1.value) }) % Self.hues.count]
         Text(initials)
-            .font(.system(size: size * 0.42, weight: .bold, design: .rounded))
-            .foregroundStyle(.white)
+            .font(.system(size: size * 0.42, weight: .semibold))
+            .foregroundStyle(hue)
+            .brightness(scheme == .dark ? 0.28 : 0)
             .frame(width: size, height: size)
-            .background(Circle().fill(LinearGradient(colors: [p.0, p.1], startPoint: .topLeading, endPoint: .bottomTrailing)))
-            .overlay(Circle().strokeBorder(Color.white.opacity(0.25), lineWidth: 1))
-            .padding(ring ? 2.5 : 0)
-            .overlay(Circle().strokeBorder(ring ? Color.brand : .clear, lineWidth: 1.5))
+            .background(Circle().fill(hue.opacity(scheme == .dark ? 0.28 : 0.16)))
     }
 
     private var initials: String {
@@ -602,6 +397,45 @@ struct Avatar: View {
         let words = base.split(whereSeparator: { " ._-".contains($0) })
         let letters = words.count > 1 ? words.prefix(2).compactMap(\.first) : Array(base.prefix(1))
         return String(letters).uppercased()
+    }
+}
+
+struct PrimaryButton: View {
+    let title: String
+    let action: () -> Void
+    @State private var hover = false
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 12).padding(.vertical, 6)
+                .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(Color.brand.opacity(hover ? 0.9 : 1)))
+        }
+        .buttonStyle(.plain)
+        .onHover { hover = $0 }
+    }
+}
+
+struct QuietButton: View {
+    let title: String
+    var symbol: String? = nil
+    let action: () -> Void
+    @State private var hover = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                if let symbol { Image(systemName: symbol).font(.system(size: 11, weight: .semibold)) }
+                Text(title)
+            }
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(hover ? Color.text1 : Color.text2)
+        }
+        .buttonStyle(.plain)
+        .onHover { hover = $0 }
     }
 }
 
@@ -616,11 +450,11 @@ struct IconButton: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.text2)
                 .rotationEffect(.degrees(spinning ? 360 : 0))
                 .animation(spinning ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: spinning)
                 .frame(width: 26, height: 26)
-                .background(RoundedRectangle(cornerRadius: 7).fill(Color.primary.opacity(hover ? 0.08 : 0)))
+                .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(hover ? 0.07 : 0)))
         }
         .buttonStyle(.plain)
         .onHover { hover = $0 }
@@ -631,10 +465,10 @@ struct IconButton: View {
 struct BusyOverlay: View {
     var body: some View {
         ZStack {
-            Rectangle().fill(.ultraThinMaterial)
+            WindowBackground().opacity(0.85)
             VStack(spacing: 8) {
                 ProgressView().controlSize(.small)
-                Text("Switching…").font(.system(size: 12, weight: .medium)).foregroundStyle(.secondary)
+                Text("Switching…").font(.system(size: 12, weight: .medium)).foregroundStyle(Color.text2)
             }
         }
     }

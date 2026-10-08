@@ -2,10 +2,11 @@
 
 ## 1.1.0
 
-- New popover: the active account at the top with session and weekly ring gauges, and pace
-  markers showing whether you're using a limit faster or slower than time is passing.
-- Plan badges (Pro, Max 5x, Max 20x).
-- Smart switch: points you to the account with the most room left and switches in one click.
+- Redesigned popover: the current account sits at the top on a faint tint, other accounts are
+  plain rows, and every limit uses the same bar style. Pace is shown in tooltips.
+- Switch suggestion: a **Switch to …** button for the account with the most room left.
+- A single accent colour, flat avatars and clearer text contrast.
+- Plan names (Pro, Max 5x, Max 20x).
 - ⌘1–⌘9 switch accounts while the popover is open.
 - "Sync Desktop" button when Claude Desktop is on a different account.
 - Universal (Apple Silicon + Intel) builds published from GitHub Actions.
