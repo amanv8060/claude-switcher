@@ -54,6 +54,59 @@ enum ClaudeDesktop {
         }
     }
 
+    /// "<accountUuid>/<orgUuid>" folders for every saved Claude Code account.
+    static func accountFolders(_ state: AppState) -> [String] {
+        state.code.map { $0.key.replacingOccurrences(of: "|", with: "/") }
+    }
+
+    /// Opt-in: copies every Code session into every account's folder in `root`
+    /// (a claude-code-sessions folder), so all accounts list the same chats.
+    /// Newest copy wins; a session deleted under any account is deleted everywhere.
+    static func mirrorCodeSessions(in root: URL, to folders: [String]) {
+        var newest: [String: URL] = [:], deleted: [String: URL] = [:]
+        for acct in children(root) {
+            for org in children(acct) {
+                for file in children(org) {
+                    let name = file.lastPathComponent
+                    if name.hasPrefix("deleted_") {
+                        deleted[String(name.dropFirst("deleted_".count))] = file
+                    } else if name.hasPrefix("local_"), name.hasSuffix(".json") {
+                        let id = String(name.dropFirst("local_".count).dropLast(".json".count))
+                        if let have = newest[id], let a = modified(have), let b = modified(file), a >= b { continue }
+                        newest[id] = file
+                    }
+                }
+            }
+        }
+        for folder in folders {
+            let dir = root.appendingPathComponent(folder)
+            try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+            for (id, marker) in deleted {
+                let target = dir.appendingPathComponent("deleted_\(id)")
+                if !fm.fileExists(atPath: target.path) { try? fm.copyItem(at: marker, to: target) }
+            }
+            for (id, file) in newest where deleted[id] == nil {
+                let target = dir.appendingPathComponent("local_\(id).json")
+                if target.standardizedFileURL == file.standardizedFileURL { continue }
+                if let have = modified(target), let new = modified(file), have >= new { continue }
+                try? fm.removeItem(at: target)
+                try? fm.copyItem(at: file, to: target)
+            }
+            applyDeletions(in: dir)
+        }
+    }
+
+    private static func children(_ dir: URL) -> [URL] {
+        (try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
+    }
+
+    /// Shares chats across accounts in the shared store, if that setting is on.
+    static func mirrorIfEnabled(_ state: AppState) {
+        guard state.shareSessionsAcrossAccounts else { return }
+        mirrorCodeSessions(in: sharedSessionsDir.appendingPathComponent("claude-code-sessions"),
+                           to: accountFolders(state))
+    }
+
     /// Gathers every profile's sessions into the shared store (reads only).
     static func collectAllSessions(_ state: AppState) {
         for p in state.desktop { collectSessions(from: folder(for: p, state: state)) }
@@ -150,6 +203,7 @@ enum ClaudeDesktop {
             throw error
         }
         state.activeDesktopID = target.id
+        mirrorIfEnabled(state)
         distributeSessions(into: desktopLiveDir)
         launch()
     }
@@ -163,7 +217,12 @@ enum ClaudeDesktop {
         let p = DesktopProfile(id: UUID().uuidString, name: name, linkedAccountUuid: account)
         state.desktop.append(p)
         state.activeDesktopID = p.id
-        launch() // starts with an empty folder → login screen
+        if state.shareSessionsAcrossAccounts {
+            // Pre-fill the fresh profile so the shared chats are there after sign-in.
+            mirrorIfEnabled(state)
+            distributeSessions(into: desktopLiveDir)
+        }
+        launch() // signed out → login screen
     }
 
     static func remove(_ p: DesktopProfile, state: inout AppState) {

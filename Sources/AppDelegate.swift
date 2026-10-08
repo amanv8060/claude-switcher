@@ -76,6 +76,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         add("Show session usage in menu bar", s.showUsageInMenuBar) { [model] in model!.state.showUsageInMenuBar.toggle(); model!.state.save() }
         if model.desktopInstalled {
             add("Confirm before restarting Claude Desktop", s.confirmDesktopSwitch) { [model] in model!.state.confirmDesktopSwitch.toggle(); model!.state.save() }
+            add("Share Code sessions across accounts", s.shareSessionsAcrossAccounts) { [model] in model!.toggleShareSessions() }
         }
         add("Launch at login", model.launchAtLogin) { [model] in model!.toggleLaunchAtLogin() }
         menu.addItem(.separator())

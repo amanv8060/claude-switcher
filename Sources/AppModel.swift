@@ -103,6 +103,16 @@ final class AppModel: ObservableObject {
         state.save()
     }
 
+    func toggleShareSessions() {
+        if !state.shareSessionsAcrossAccounts {
+            guard confirm("Show the same Code sessions in every account?",
+                          "From the next Claude Desktop switch, every account lists all your Code sessions. Deleting one deletes it everywhere.\n\nResuming a session under a different account keeps its chat, folder and model, but MCP connectors, remote control and published artifacts may not carry over.",
+                          "Share Sessions") else { return }
+        }
+        state.shareSessionsAcrossAccounts.toggle()
+        state.save()
+    }
+
     func renameProfile(_ p: DesktopProfile) {
         guard let i = state.desktop.firstIndex(where: { $0.id == p.id }),
               let n = ask("Rename Desktop profile", "", default: p.name) else { return }
