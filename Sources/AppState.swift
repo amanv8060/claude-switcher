@@ -12,7 +12,13 @@ struct CodeProfile: Codable {
 struct DesktopProfile: Codable {
     var id: String
     var name: String
-    var accountUuid: String? // from the profile's config.json → lastKnownAccountUuid
+    var accountUuid: String?       // who Desktop is signed in as (config.json → lastKnownAccountUuid)
+    var linkedAccountUuid: String? = nil // who this profile is meant for
+
+    /// Desktop was signed in to a different account than the one this profile belongs to.
+    var isMismatched: Bool {
+        linkedAccountUuid != nil && accountUuid != nil && linkedAccountUuid != accountUuid
+    }
 }
 
 struct AppState: Codable {

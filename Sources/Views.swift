@@ -38,6 +38,9 @@ struct PopoverView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
+            ForEach(model.mismatchedProfiles, id: \.id) { p in
+                MismatchNotice(model: model, profile: p)
+            }
             if let hero = model.hero {
                 CurrentAccount(model: model, account: hero).padding(.horizontal, 8)
             } else {
@@ -191,6 +194,34 @@ struct CurrentAccount: View {
                     .font(.system(size: 11.5, weight: .medium)).foregroundStyle(Color.brand)
             }
         }
+    }
+}
+
+// MARK: - Mismatch warning
+
+/// A Desktop profile ended up signed in to a different account than it was set up for.
+struct MismatchNotice: View {
+    @ObservedObject var model: AppModel
+    let profile: DesktopProfile
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Image(systemName: "exclamationmark.triangle").foregroundStyle(Color.warn)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Desktop profile “\(profile.name)” is signed in to \(model.label(forAccount: profile.accountUuid)), not \(model.label(forAccount: profile.linkedAccountUuid)).")
+                    .font(.system(size: 11.5)).foregroundStyle(Color.text1)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 14) {
+                    Button("Keep it as \(model.label(forAccount: profile.accountUuid))") { model.relink(profile) }
+                    Button("Rename…") { model.renameProfile(profile) }
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 11.5, weight: .medium)).foregroundStyle(Color.brand)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16).padding(.bottom, 12)
+        .help("Sessions and settings in this profile now belong to the account it's signed in to.")
     }
 }
 
