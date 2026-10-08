@@ -83,6 +83,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             add("Add Claude Desktop login…") { [model] in model!.addDesktopLogin() }
         }
         add("Show data folder") { [model] in model!.revealDataFolder() }
+        menu.addItem(.separator())
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+        add("Claude Switcher \(version) · Releases…") {
+            NSWorkspace.shared.open(URL(string: "https://github.com/amanv8060/claude-switcher/releases")!)
+        }
         menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
     }
 }
