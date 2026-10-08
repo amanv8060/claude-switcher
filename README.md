@@ -33,6 +33,22 @@
 Shortcuts: <kbd>⌘1</kbd>–<kbd>⌘9</kbd> switch accounts while the popover is open. Right-click an
 account to rename or remove it.
 
+## Install
+
+```bash
+brew install --cask amanv8060/tap/claude-switcher
+```
+
+Or download the zip from [Releases](https://github.com/amanv8060/cc-switcher/releases), unzip it
+and move **Claude Switcher.app** to Applications. The app isn't notarized yet, so macOS blocks it
+the first time you open it. Right-click the app and choose **Open**, or run:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Claude Switcher.app"
+```
+
+Then click the menu bar icon and choose **Add account** to sign in to your other accounts.
+
 ## How it works
 
 | | What a switch changes |
