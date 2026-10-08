@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] - 2026-10-09
+
+### Added
+
+- An opt-in setting, **Share Code sessions across accounts**, that shows the same Claude Desktop
+  Code sessions under every account. The newest copy of a session wins, and deleting a session
+  under one account deletes it everywhere.
+
+### Fixed
+
+- Sessions deleted in Claude Desktop could be copied back from another profile on the next switch.
+
 ## [1.1.0] - 2026-10-09
 
 ### Added
@@ -39,6 +51,7 @@ First release.
 - Plan names, ⌘1–⌘9 shortcuts, launch at login, and a menu bar label showing the current account
   and its session usage.
 
+[1.2.0]: https://github.com/amanv8060/claude-switcher/releases/tag/v1.2.0
 [1.1.0]: https://github.com/amanv8060/claude-switcher/releases/tag/v1.1.0
 [1.0.1]: https://github.com/amanv8060/claude-switcher/releases/tag/v1.0.1
 [1.0.0]: https://github.com/amanv8060/claude-switcher/releases/tag/v1.0.0
