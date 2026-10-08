@@ -2,13 +2,15 @@ import SwiftUI
 
 extension Color {
     static let brand = Color(red: 0.851, green: 0.467, blue: 0.341)
-    static let good = Color(red: 0.30, green: 0.66, blue: 0.45)
-    static let warn = Color(red: 0.95, green: 0.62, blue: 0.20)
-    static let bad = Color(red: 0.89, green: 0.29, blue: 0.24)
+    // Clay (brand) marks identity: the active account, badges, primary actions.
+    // Green / amber / red mark usage health only.
+    static let good = Color(red: 0.24, green: 0.62, blue: 0.49)
+    static let warn = Color(red: 0.89, green: 0.64, blue: 0.23)
+    static let bad = Color(red: 0.85, green: 0.33, blue: 0.29)
 
-    /// Brand until 70%, then amber, then red from 90%.
+    /// Green until 70%, then amber, then red from 90%.
     static func usage(_ fraction: Double) -> Color {
-        fraction >= 0.9 ? .bad : fraction >= 0.7 ? .warn : .brand
+        fraction >= 0.9 ? .bad : fraction >= 0.7 ? .warn : .good
     }
 }
 
@@ -574,12 +576,13 @@ struct Avatar: View {
     let size: CGFloat
     let ring: Bool
 
+    // Muted, warm-leaning tones so avatars sit quietly next to the clay accent.
     private static let palettes: [(Color, Color)] = [
-        (Color(red: 0.95, green: 0.60, blue: 0.45), Color(red: 0.80, green: 0.36, blue: 0.24)),
-        (Color(red: 0.49, green: 0.56, blue: 0.95), Color(red: 0.33, green: 0.36, blue: 0.80)),
-        (Color(red: 0.36, green: 0.78, blue: 0.70), Color(red: 0.16, green: 0.55, blue: 0.52)),
-        (Color(red: 0.82, green: 0.52, blue: 0.86), Color(red: 0.58, green: 0.30, blue: 0.68)),
-        (Color(red: 0.93, green: 0.74, blue: 0.36), Color(red: 0.78, green: 0.52, blue: 0.16)),
+        (Color(red: 0.82, green: 0.58, blue: 0.47), Color(red: 0.66, green: 0.40, blue: 0.31)), // clay
+        (Color(red: 0.55, green: 0.62, blue: 0.75), Color(red: 0.38, green: 0.45, blue: 0.60)), // slate
+        (Color(red: 0.52, green: 0.68, blue: 0.60), Color(red: 0.34, green: 0.51, blue: 0.44)), // sage
+        (Color(red: 0.70, green: 0.58, blue: 0.72), Color(red: 0.52, green: 0.40, blue: 0.56)), // plum
+        (Color(red: 0.80, green: 0.69, blue: 0.48), Color(red: 0.62, green: 0.51, blue: 0.31)), // sand
     ]
 
     var body: some View {
