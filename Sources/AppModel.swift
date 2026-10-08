@@ -18,6 +18,8 @@ final class AppModel: ObservableObject {
     @Published var activeKey: String?
     @Published var lastUsageFetch = Date.distantPast
     @Published var busy = false
+    @Published var availableUpdate: Updater.Release?
+    private var lastUpdateCheck = Date.distantPast
     let desktopInstalled: Bool
     let isPreview: Bool
 
@@ -39,8 +41,10 @@ final class AppModel: ObservableObject {
         }
     }
 
-    /// Sample data for `--render-preview`; touches nothing on disk.
-    init(preview: Void) {
+    /// Sample data for `--render-preview`; touches nothing on disk. With
+    /// `outOfSync`, Claude Code is on a newly added account while Desktop is
+    /// still on another one.
+    init(preview: Void, outOfSync: Bool = false, updateAvailable: Bool = false) {
         isPreview = true
         desktopInstalled = true
         var s = AppState()
@@ -53,7 +57,10 @@ final class AppModel: ObservableObject {
                      DesktopProfile(id: "d3", name: "Side project", accountUuid: "u3")]
         s.activeDesktopID = "d1"
         state = s
-        activeKey = "u1|org"
+        activeKey = outOfSync ? "u2|org" : "u1|org"
+        if updateAvailable {
+            availableUpdate = .init(version: "9.9.9", url: URL(string: "https://github.com/\(Updater.repo)/releases")!)
+        }
         lastUsageFetch = Date().addingTimeInterval(-90)
         let now = Date()
         func w(_ l: String, _ u: Double, _ h: Double) -> ClaudeAPI.Window {
@@ -86,6 +93,12 @@ final class AppModel: ObservableObject {
     /// signed in to the same account.
     func isDesktopActive(_ a: Account) -> Bool {
         desktopInstalled && a.desktop != nil && a.desktop?.id == state.activeDesktopID
+    }
+
+    /// The account Claude Desktop is on, if it differs from `a` (shown as a row).
+    func desktopAccount(otherThan a: Account) -> Account? {
+        guard desktopInstalled, !isDesktopActive(a) else { return nil }
+        return accounts.first(where: isDesktopActive)
     }
 
     /// Desktop profiles signed in to a different account than the one they belong to.
@@ -164,6 +177,41 @@ final class AppModel: ObservableObject {
         activeKey = ClaudeCode.current()?.key
         state.save()
         if Date().timeIntervalSince(lastUsageFetch) > 60 { refreshUsage() }
+        if state.checkForUpdates, Date().timeIntervalSince(lastUpdateCheck) > 24 * 3600 {
+            Task { await checkForUpdates(manual: false) }
+        }
+    }
+
+    // MARK: Updates
+
+    func checkForUpdates(manual: Bool) async {
+        guard !isPreview else { return }
+        lastUpdateCheck = Date()
+        do {
+            let latest = try await Updater.latestRelease()
+            availableUpdate = Updater.isNewer(latest.version, than: Updater.currentVersion) ? latest : nil
+            if manual && availableUpdate == nil {
+                alert("You're up to date", "Claude Switcher \(Updater.currentVersion) is the latest version.")
+            }
+        } catch {
+            if manual { alert("Couldn't check for updates", "Check your connection and try again.") }
+        }
+    }
+
+    func installUpdate() {
+        guard let update = availableUpdate else { return }
+        if Updater.installedWithHomebrew {
+            dismissPopover()
+            perform { try Updater.upgradeWithHomebrew() }
+        } else {
+            NSWorkspace.shared.open(update.url)
+        }
+    }
+
+    func toggleCheckForUpdates() {
+        state.checkForUpdates.toggle()
+        if !state.checkForUpdates { availableUpdate = nil }
+        state.save()
     }
 
     func refreshUsage() {

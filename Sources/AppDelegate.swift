@@ -85,6 +85,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         add("Show data folder") { [model] in model!.revealDataFolder() }
         menu.addItem(.separator())
+        add("Check for updates…") { [model] in Task { await model!.checkForUpdates(manual: true) } }
+        add("Check for updates automatically", s.checkForUpdates) { [model] in model!.toggleCheckForUpdates() }
+        menu.addItem(.separator())
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
         add("Claude Switcher \(version) · Releases…") {
             NSWorkspace.shared.open(URL(string: "https://github.com/amanv8060/claude-switcher/releases")!)
@@ -155,9 +158,9 @@ enum StatusIcon {
 /// `--render-preview <dir>` writes screenshots of the UI with sample data.
 @MainActor
 enum PreviewRenderer {
-    static func run(into dir: URL) {
+    static func run(into dir: URL, outOfSync: Bool = false, updateAvailable: Bool = false) {
         try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
-        let model = AppModel(preview: ())
+        let model = AppModel(preview: (), outOfSync: outOfSync, updateAvailable: updateAvailable)
         for (scheme, name) in [(ColorScheme.light, "light"), (.dark, "dark")] {
             let view = PreviewScene(model: model).environment(\.colorScheme, scheme)
             let r = ImageRenderer(content: view)
@@ -175,6 +178,11 @@ struct PreviewScene: View {
     @ObservedObject var model: AppModel
     @Environment(\.colorScheme) private var scheme
 
+    private var menuBarTitle: String {
+        guard let a = model.activeCode else { return "" }
+        return [a.name, model.sessionPercent(a.id).map { "\(Int($0))%" }].compactMap { $0 }.joined(separator: " · ")
+    }
+
     var body: some View {
         let dark = scheme == .dark
         VStack(alignment: .trailing, spacing: 6) {
@@ -182,7 +190,7 @@ struct PreviewScene: View {
                 Spacer()
                 HStack(spacing: 4) {
                     Image(nsImage: StatusIcon.image).renderingMode(.template)
-                    Text("Personal · 34%").font(.system(size: 13, weight: .medium))
+                    Text(menuBarTitle).font(.system(size: 13, weight: .medium))
                 }
                 .padding(.horizontal, 8).padding(.vertical, 2)
                 .background(RoundedRectangle(cornerRadius: 5).fill(Color.primary.opacity(0.14)))

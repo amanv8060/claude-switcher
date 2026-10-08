@@ -38,6 +38,7 @@ struct PopoverView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
+            if let update = model.availableUpdate { UpdateNotice(model: model, update: update) }
             ForEach(model.mismatchedProfiles, id: \.id) { p in
                 MismatchNotice(model: model, profile: p)
             }
@@ -145,7 +146,8 @@ struct CurrentAccount: View {
                         Text(model.name(account)).font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.text1)
                         HStack(spacing: 4) {
                             Circle().fill(Color.brand).frame(width: 6, height: 6)
-                            Text("Current").font(.system(size: 11, weight: .medium)).foregroundStyle(Color.brand)
+                            Text(model.desktopAccount(otherThan: account) == nil ? "Current" : "Current in Claude Code")
+                                .font(.system(size: 11, weight: .medium)).foregroundStyle(Color.brand)
                         }
                     }
                     Text(detailLine).font(.system(size: 11.5)).foregroundStyle(Color.text2).lineLimit(1)
@@ -181,19 +183,70 @@ struct CurrentAccount: View {
         }
     }
 
-    private var activeIn: some View {
+    @ViewBuilder private var activeIn: some View {
         let cli = model.isCLIActive(account), desktop = model.isDesktopActive(account)
-        let places = [cli ? "Claude Code" : nil, desktop ? "Desktop" : nil].compactMap { $0 }
-        return HStack(spacing: 6) {
+        if model.desktopInstalled && cli && !desktop && account.code != nil {
+            outOfSync
+        } else {
+            let places = [cli ? "Claude Code" : nil, desktop ? "Desktop" : nil].compactMap { $0 }
             Text(places.isEmpty ? "Not active anywhere" : "Active in " + places.joined(separator: " and "))
                 .font(.system(size: 11.5)).foregroundStyle(Color.text2)
-            Spacer(minLength: 0)
-            if model.desktopInstalled && !desktop && account.code != nil {
-                Button("Use in Desktop too") { model.switchTo(account) }
-                    .buttonStyle(.plain)
-                    .font(.system(size: 11.5, weight: .medium)).foregroundStyle(Color.brand)
+        }
+    }
+
+    /// Claude Code and Desktop are on different accounts: say where each one is
+    /// and what bringing Desktop over will do.
+    private var outOfSync: some View {
+        let name = model.name(account)
+        let elsewhere = model.desktopAccount(otherThan: account).map(model.name) ?? "another account"
+        let needsSignIn = account.desktop == nil
+        return VStack(alignment: .leading, spacing: 10) {
+            Divider()
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
+                GridRow {
+                    Text("Claude Code").foregroundStyle(Color.text2)
+                    Text(name).foregroundStyle(Color.text1)
+                }
+                GridRow {
+                    Text("Claude Desktop").foregroundStyle(Color.text2)
+                    Text(elsewhere).foregroundStyle(Color.text1)
+                }
+            }
+            .font(.system(size: 11.5))
+            VStack(alignment: .leading, spacing: 6) {
+                PrimaryButton(title: needsSignIn ? "Set up Desktop for \(name)" : "Switch Desktop to \(name)") {
+                    model.switchTo(account)
+                }
+                .fixedSize()
+                Text(needsSignIn ? "Desktop restarts signed out. Sign in as \(account.code?.email ?? name)."
+                                 : "Desktop quits and reopens on \(name).")
+                    .font(.system(size: 11)).foregroundStyle(Color.text2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
+    }
+}
+
+// MARK: - Update notice
+
+struct UpdateNotice: View {
+    @ObservedObject var model: AppModel
+    let update: Updater.Release
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "arrow.down.circle").foregroundStyle(Color.brand)
+            Text("Version \(update.version) is available").foregroundStyle(Color.text1)
+            Spacer(minLength: 4)
+            Button("Release notes") { NSWorkspace.shared.open(update.url) }
+                .foregroundStyle(Color.text2)
+            Button(Updater.installedWithHomebrew ? "Update" : "Download") { model.installUpdate() }
+                .fontWeight(.semibold).foregroundStyle(Color.brand)
+        }
+        .buttonStyle(.plain)
+        .font(.system(size: 11.5))
+        .padding(.horizontal, 16).padding(.bottom, 12)
+        .help(Updater.installedWithHomebrew ? "Runs brew upgrade in Terminal. Claude Switcher quits and reopens." : "")
     }
 }
 
@@ -264,6 +317,13 @@ struct AccountRow: View {
                     Text(model.name(account)).font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.text1)
                     if let plan = account.code.flatMap({ model.plans[$0.id] }) {
                         Text(plan).font(.system(size: 11)).foregroundStyle(Color.text2)
+                    }
+                    if model.isDesktopActive(account) {
+                        HStack(spacing: 4) {
+                            Circle().fill(Color.brand).frame(width: 5, height: 5)
+                            Text("In Desktop")
+                        }
+                        .font(.system(size: 11, weight: .medium)).foregroundStyle(Color.brand)
                     }
                     Spacer(minLength: 4)
                     Text(hover ? (shortcut <= 9 ? "Switch  ⌘\(shortcut)" : "Switch") : "")

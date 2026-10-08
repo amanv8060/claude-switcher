@@ -29,6 +29,7 @@ struct AppState: Codable {
     var showUsageInMenuBar = true
     var confirmDesktopSwitch = true
     var shareSessionsAcrossAccounts = false
+    var checkForUpdates = true
 
     init() {}
 
@@ -42,6 +43,7 @@ struct AppState: Codable {
         showUsageInMenuBar = try c.decodeIfPresent(Bool.self, forKey: .showUsageInMenuBar) ?? true
         confirmDesktopSwitch = try c.decodeIfPresent(Bool.self, forKey: .confirmDesktopSwitch) ?? true
         shareSessionsAcrossAccounts = try c.decodeIfPresent(Bool.self, forKey: .shareSessionsAcrossAccounts) ?? false
+        checkForUpdates = try c.decodeIfPresent(Bool.self, forKey: .checkForUpdates) ?? true
     }
 
     static func load() -> AppState {

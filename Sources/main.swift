@@ -47,7 +47,11 @@ if CommandLine.arguments.contains("--selftest") {
 
 if let i = CommandLine.arguments.firstIndex(of: "--render-preview") {
     let dir = CommandLine.arguments.count > i + 1 ? CommandLine.arguments[i + 1] : "docs"
-    MainActor.assumeIsolated { PreviewRenderer.run(into: URL(fileURLWithPath: dir)) }
+    let outOfSync = CommandLine.arguments.contains("--out-of-sync")
+    let update = CommandLine.arguments.contains("--update-available")
+    MainActor.assumeIsolated {
+        PreviewRenderer.run(into: URL(fileURLWithPath: dir), outOfSync: outOfSync, updateAvailable: update)
+    }
     exit(0)
 }
 

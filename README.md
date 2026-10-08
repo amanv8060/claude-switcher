@@ -31,6 +31,8 @@
 - Shows the current account and its session usage in the menu bar.
 - Optionally shows the same Claude Desktop Code sessions under every account (gear icon →
   **Share Code sessions across accounts**).
+- Tells you when a new version is out. If you installed it with Homebrew, **Update** upgrades it
+  for you.
 
 Shortcuts: <kbd>⌘1</kbd>–<kbd>⌘9</kbd> switch accounts while the popover is open. Right-click an
 account to rename or remove it.
@@ -76,7 +78,8 @@ A few things to know:
 ## Privacy
 
 Saved logins live in your login keychain, never in plain files. The app talks only to
-`api.anthropic.com` and `platform.claude.com`, and only with each account's own login. There's no
+`api.anthropic.com` and `platform.claude.com`, and only with each account's own login, plus a
+once-a-day update check on GitHub that you can turn off. There's no
 analytics or telemetry. [SECURITY.md](SECURITY.md) lists every file the app touches.
 
 ## Building from source
