@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/amanv8060/cc-switcher/actions/workflows/ci.yml"><img src="https://github.com/amanv8060/cc-switcher/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/amanv8060/claude-switcher/actions/workflows/ci.yml"><img src="https://github.com/amanv8060/claude-switcher/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/macOS-13%2B-555" alt="macOS 13+">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-555" alt="MIT license"></a>
 </p>
@@ -39,7 +39,7 @@ account to rename or remove it.
 brew install --cask amanv8060/tap/claude-switcher
 ```
 
-Or download the zip from [Releases](https://github.com/amanv8060/cc-switcher/releases), unzip it
+Or download the zip from [Releases](https://github.com/amanv8060/claude-switcher/releases), unzip it
 and move **Claude Switcher.app** to Applications. The app isn't notarized yet, so macOS blocks it
 the first time you open it. Right-click the app and choose **Open**, or run:
 
@@ -77,8 +77,8 @@ analytics or telemetry. [SECURITY.md](SECURITY.md) lists every file the app touc
 Requires macOS 13 or later and the Xcode command line tools. There are no dependencies.
 
 ```bash
-git clone https://github.com/amanv8060/cc-switcher.git
-cd cc-switcher
+git clone https://github.com/amanv8060/claude-switcher.git
+cd claude-switcher
 ./build.sh --install   # builds, copies to ~/Applications, turns on launch at login
 ```
 

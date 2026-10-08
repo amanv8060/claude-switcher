@@ -4,7 +4,7 @@ Claude Switcher handles login tokens for your Claude accounts, so security repor
 
 ## Reporting
 
-Please **don't open a public issue**. Use [GitHub's private vulnerability reporting](https://github.com/amanv8060/cc-switcher/security/advisories/new) instead. You'll get a reply within a few days.
+Please **don't open a public issue**. Use [GitHub's private vulnerability reporting](https://github.com/amanv8060/claude-switcher/security/advisories/new) instead. You'll get a reply within a few days.
 
 ## What the app does with your data
 

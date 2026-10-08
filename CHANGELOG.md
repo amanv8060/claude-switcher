@@ -19,4 +19,4 @@ First release.
 - Plan names, ⌘1–⌘9 shortcuts, launch at login, and a menu bar label showing the current account
   and its session usage.
 
-[1.0.0]: https://github.com/amanv8060/cc-switcher/releases/tag/v1.0.0
+[1.0.0]: https://github.com/amanv8060/claude-switcher/releases/tag/v1.0.0
