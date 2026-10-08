@@ -4,6 +4,10 @@ A macOS menu bar app for switching between multiple Claude accounts and seeing e
 
 ## Features
 
+- **One click switches everywhere.** Each account is listed once. Clicking it switches the
+  Claude Code CLI and then the Claude Desktop app, including its Code tab, which uses the
+  Desktop app's login. Desktop logins are matched to CLI logins automatically by account ID.
+
 - **Claude Code (CLI) accounts.** Switch with one click. Only the Claude login is swapped: the
   `claudeAiOauth` token in the `Claude Code-credentials` keychain item and `oauthAccount` in
   `~/.claude.json`. MCP tokens and every other setting stay as they are.
@@ -36,8 +40,11 @@ Click an account to switch. Restart any `claude` sessions that were already runn
 
 > Don't use `claude auth logout` to change accounts. It can revoke the saved login.
 
-**Add a Claude Desktop account:** choose **Save current login as profile…** once, then
-**Add account…**. Claude reopens signed out so you can log in.
+The first time you switch to an account that has never signed in to Claude Desktop, the app
+offers to set that up: Claude reopens signed out, you sign in, and the login is linked to that
+account from then on. Switching Desktop accounts restarts Claude, which stops chats and Code
+sessions running in it. You're asked first unless you turn that off under **Manage**.
+**Manage → Add Claude Desktop login…** adds a Desktop-only account.
 
 ## Notes
 

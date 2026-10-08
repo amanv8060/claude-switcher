@@ -118,6 +118,7 @@ struct CodeProfile: Codable {
 struct DesktopProfile: Codable {
     var id: String
     var name: String
+    var accountUuid: String? // from the profile's config.json → lastKnownAccountUuid
 }
 
 struct State: Codable {
@@ -126,6 +127,7 @@ struct State: Codable {
     var activeDesktopID: String?
     var showNameInMenuBar = true
     var showUsageInMenuBar = true
+    var confirmDesktopSwitch = true
 
     init() {}
 
@@ -137,6 +139,7 @@ struct State: Codable {
         activeDesktopID = try c.decodeIfPresent(String.self, forKey: .activeDesktopID)
         showNameInMenuBar = try c.decodeIfPresent(Bool.self, forKey: .showNameInMenuBar) ?? true
         showUsageInMenuBar = try c.decodeIfPresent(Bool.self, forKey: .showUsageInMenuBar) ?? true
+        confirmDesktopSwitch = try c.decodeIfPresent(Bool.self, forKey: .confirmDesktopSwitch) ?? true
     }
 
     static func load() -> State {
@@ -246,6 +249,28 @@ enum ClaudeCode {
 
 enum ClaudeDesktop {
     static func dir(for id: String) -> URL { desktopStore.appendingPathComponent(id) }
+
+    /// The account a Desktop data folder is signed in to (matches oauthAccount.accountUuid).
+    static func accountUuid(in folder: URL) -> String? {
+        guard let d = try? Data(contentsOf: folder.appendingPathComponent("config.json")),
+              let obj = (try? JSONSerialization.jsonObject(with: d)) as? [String: Any] else { return nil }
+        return obj["lastKnownAccountUuid"] as? String
+    }
+
+    /// Registers the live folder as a profile on first run and keeps every
+    /// profile's account id current (the user may sign in/out inside Claude).
+    static func sync(_ state: inout State) {
+        guard isInstalled else { return }
+        if state.activeDesktopID == nil, fm.fileExists(atPath: desktopLiveDir.path) {
+            let p = DesktopProfile(id: UUID().uuidString, name: "Desktop")
+            state.desktop.append(p)
+            state.activeDesktopID = p.id
+        }
+        for i in state.desktop.indices {
+            let folder = state.desktop[i].id == state.activeDesktopID ? desktopLiveDir : dir(for: state.desktop[i].id)
+            if let uuid = accountUuid(in: folder) { state.desktop[i].accountUuid = uuid }
+        }
+    }
 
     static var isInstalled: Bool {
         NSWorkspace.shared.urlForApplication(withBundleIdentifier: desktopBundleID) != nil
@@ -519,8 +544,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func refreshCodeSnapshot() {
         _ = try? ClaudeCode.snapshot(into: &state)
+        ClaudeDesktop.sync(&state)
         state.save()
     }
+
+    /// One row per account: its CLI login and/or its Claude Desktop profile.
+    struct Account {
+        var code: CodeProfile?
+        var desktop: DesktopProfile?
+        var id: String { code.map { "code:" + $0.id } ?? "desktop:" + (desktop?.id ?? "") }
+        var accountUuid: String? { code.map { String($0.key.split(separator: "|")[0]) } ?? desktop?.accountUuid }
+    }
+
+    var accounts: [Account] {
+        var rows = state.code.map { c -> Account in
+            let uuid = String(c.key.split(separator: "|")[0])
+            let matches = state.desktop.filter { $0.accountUuid == uuid }
+            return Account(code: c, desktop: matches.first { $0.id == state.activeDesktopID } ?? matches.first)
+        }
+        for d in state.desktop where !rows.contains(where: { $0.desktop?.id == d.id }) {
+            rows.append(Account(code: nil, desktop: d))
+        }
+        return rows
+    }
+
+    func displayName(_ a: Account) -> String {
+        if let p = a.code {
+            return p.org.isEmpty || p.org.contains(p.email) || p.name.contains(p.org) ? p.name : "\(p.name)  —  \(p.org)"
+        }
+        let d = a.desktop!
+        return d.accountUuid == nil ? "\(d.name) (signed out)" : "\(d.name) (Desktop only)"
+    }
+
+    var activeDesktopUuid: String? { state.desktop.first { $0.id == state.activeDesktopID }?.accountUuid }
 
     var activeCodeProfile: CodeProfile? {
         guard let cur = ClaudeCode.current() else { return nil }
@@ -552,41 +608,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.autoenablesItems = false
         usageItems = [:]
 
-        // Claude Code
-        menu.addItem(header("Claude Code"))
+        menu.addItem(header("Accounts"))
         let activeKey = ClaudeCode.current()?.key
-        for p in state.code {
-            let title = p.org.isEmpty || p.org.contains(p.email) || p.name.contains(p.org) ? p.name : "\(p.name)  —  \(p.org)"
-            let it = item(title, #selector(switchCode(_:)), p.id)
-            it.state = p.key == activeKey ? .on : .off
-            it.toolTip = p.email
+        let desktopInstalled = ClaudeDesktop.isInstalled
+        for a in accounts {
+            let cliActive = a.code != nil && a.code?.key == activeKey
+            let desktopActive = desktopInstalled && a.accountUuid != nil && a.accountUuid == activeDesktopUuid
+            var title = displayName(a)
+            // Only call out where it's active when CLI and Desktop disagree.
+            if cliActive != desktopActive && desktopInstalled {
+                title += cliActive ? "   · CLI" : "   · Desktop"
+            }
+            let it = item(title, #selector(switchAccount(_:)), a.id)
+            it.state = cliActive || desktopActive ? .on : .off
+            it.toolTip = a.code?.email
             menu.addItem(it)
             let u = NSMenuItem(title: "", action: nil, keyEquivalent: "")
             u.indentationLevel = 1
-            u.attributedTitle = usageText(p.id)
-            usageItems[p.id] = u
+            if let c = a.code {
+                u.attributedTitle = usageText(c.id)
+                usageItems[c.id] = u
+            } else {
+                u.attributedTitle = NSAttributedString(string: "Usage needs a Claude Code login — use “Add account…”", attributes: [
+                    .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize), .foregroundColor: NSColor.secondaryLabelColor])
+            }
             menu.addItem(u)
         }
-        if state.code.isEmpty {
-            menu.addItem(disabled("Not logged in — use “Add account…”"))
+        if state.code.isEmpty && state.desktop.isEmpty {
+            menu.addItem(disabled("No accounts yet — use “Add account…”"))
         }
         menu.addItem(item("Add account…", #selector(addCode)))
-
-        // Claude Desktop
-        if ClaudeDesktop.isInstalled {
-            menu.addItem(.separator())
-            menu.addItem(header("Claude Desktop"))
-            for p in state.desktop {
-                let it = item(p.name, #selector(switchDesktop(_:)), p.id)
-                it.state = p.id == state.activeDesktopID ? .on : .off
-                menu.addItem(it)
-            }
-            if state.activeDesktopID == nil {
-                menu.addItem(item("Save current login as profile…", #selector(saveDesktop)))
-            } else {
-                menu.addItem(item("Add account…", #selector(addDesktop)))
-            }
-        }
 
         // Manage
         menu.addItem(.separator())
@@ -607,7 +658,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         manage.addItem(submenu("Rename", rename))
         manage.addItem(submenu("Remove", remove))
+        if ClaudeDesktop.isInstalled {
+            manage.addItem(item("Add Claude Desktop login…", #selector(addDesktop)))
+        }
         manage.addItem(.separator())
+        let confirmItem = item("Confirm before restarting Claude Desktop", #selector(toggleConfirmDesktop))
+        confirmItem.state = state.confirmDesktopSwitch ? .on : .off
+        manage.addItem(confirmItem)
         let showName = item("Show account name in menu bar", #selector(toggleName))
         showName.state = state.showNameInMenuBar ? .on : .off
         manage.addItem(showName)
@@ -645,21 +702,49 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // MARK: Claude Code actions
 
-    @objc func switchCode(_ sender: NSMenuItem) {
+    /// Switches the CLI immediately, then brings Claude Desktop (and its Code tab) to the same account.
+    @objc func switchAccount(_ sender: NSMenuItem) {
         guard let id = sender.representedObject as? String,
-              let p = state.code.first(where: { $0.id == id }),
-              p.key != ClaudeCode.current()?.key else { return }
+              let a = accounts.first(where: { $0.id == id }) else { return }
         perform {
-            try ClaudeCode.switchTo(p, state: &state)
-            refreshUsage()
-            notify("Switched Claude Code to \(p.name)",
-                   "New `claude` sessions use this account. Restart sessions that are already running.")
+            if let c = a.code, c.key != ClaudeCode.current()?.key {
+                try ClaudeCode.switchTo(c, state: &state)
+                refreshUsage()
+            }
+            try switchDesktop(to: a)
         }
+    }
+
+    func switchDesktop(to a: Account) throws {
+        guard ClaudeDesktop.isInstalled, state.activeDesktopID != nil else { return }
+        if let target = a.desktop {
+            guard target.id != state.activeDesktopID else { return }
+            guard confirmDesktop("Switch Claude Desktop to \(displayName(a))?",
+                                 "Claude will quit and reopen. Chats and Code sessions running in it will stop.") else { return }
+            try ClaudeDesktop.switchTo(target, state: &state)
+        } else if let uuid = a.accountUuid, uuid != activeDesktopUuid, let c = a.code {
+            guard confirm("\(c.email) isn't signed in to Claude Desktop yet",
+                          "Claude will quit and reopen signed out. Sign in as \(c.email) and it'll be linked to this account automatically. Your current Desktop login is kept.",
+                          "Set Up Desktop") else { return }
+            try ClaudeDesktop.addNew(named: c.name, state: &state)
+        }
+    }
+
+    func confirmDesktop(_ title: String, _ text: String) -> Bool {
+        guard state.confirmDesktopSwitch else { return true }
+        NSApp.activate(ignoringOtherApps: true)
+        let a = NSAlert(); a.messageText = title; a.informativeText = text
+        a.addButton(withTitle: "Switch"); a.addButton(withTitle: "Cancel")
+        a.showsSuppressionButton = true
+        a.suppressionButton?.title = "Don't ask again"
+        let ok = a.runModal() == .alertFirstButtonReturn
+        if ok && a.suppressionButton?.state == .on { state.confirmDesktopSwitch = false }
+        return ok
     }
 
     @objc func addCode() {
         let ok = confirm("Add a Claude Code account",
-                         "Your current login is saved. A Terminal window will run `claude auth login` — sign in with the other account, then open this menu again and it'll be listed.\n\nDon't use “logout”: it can revoke the saved login.",
+                         "Your current login is saved. A Terminal window will run `claude auth login` — sign in with the other account, then open this menu again and it'll be listed. Clicking it the first time offers to sign Claude Desktop in too.\n\nDon't use “logout”: it can revoke the saved login.",
                          "Open Terminal")
         guard ok else { return }
         perform {
@@ -689,23 +774,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // MARK: Claude Desktop actions
 
-    @objc func saveDesktop() {
-        guard let name = ask("Name this Claude Desktop login", "e.g. Personal or Work", default: "Personal") else { return }
-        let p = DesktopProfile(id: UUID().uuidString, name: name)
-        state.desktop.append(p)
-        state.activeDesktopID = p.id
-        state.save()
-    }
-
-    @objc func switchDesktop(_ sender: NSMenuItem) {
-        guard let id = sender.representedObject as? String, id != state.activeDesktopID,
-              let p = state.desktop.first(where: { $0.id == id }),
-              confirm("Switch Claude Desktop to \(p.name)?",
-                      "Claude will quit and reopen. Anything running inside it (chats, Code sessions) will stop.",
-                      "Switch") else { return }
-        perform { try ClaudeDesktop.switchTo(p, state: &state) }
-    }
-
     @objc func addDesktop() {
         guard let name = ask("Add a Claude Desktop account",
                              "Claude will quit and reopen signed out so you can log in. Your current login is kept.",
@@ -733,6 +801,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc func toggleName() {
         state.showNameInMenuBar.toggle(); state.save(); updateButton()
+    }
+
+    @objc func toggleConfirmDesktop() {
+        state.confirmDesktopSwitch.toggle(); state.save()
     }
 
     @objc func toggleUsage() {
