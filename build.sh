@@ -25,7 +25,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <plist version="1.0"><dict>
   <key>CFBundleName</key><string>Claude Switcher</string>
   <key>CFBundleDisplayName</key><string>Claude Switcher</string>
-  <key>CFBundleIdentifier</key><string>io.github.amanv8060.claude-switcher</string>
+  <key>CFBundleIdentifier</key><string>dev.amanverma.claude-switcher</string>
   <key>CFBundleExecutable</key><string>ClaudeSwitcher</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
