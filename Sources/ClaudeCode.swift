@@ -35,14 +35,14 @@ enum ClaudeCode {
     /// Saves the live login into its profile (creating one if new). Claude Code
     /// rotates refresh tokens, so this runs before every switch and menu open.
     @discardableResult
-    static func snapshot(into state: inout State) throws -> String? {
+    static func snapshot(into state: inout AppState) throws -> String? {
         guard let cur = current() else { return nil }
         try Keychain.write(service: switcherKeychainService, account: "code-" + profileID(for: cur, in: &state),
                            value: try jsonString(cur.claudeAiOauth))
         return state.code.first { $0.key == cur.key }?.id
     }
 
-    private static func profileID(for cur: Current, in state: inout State) throws -> String {
+    private static func profileID(for cur: Current, in state: inout AppState) throws -> String {
         let acctJSON = try jsonString(cur.oauthAccount)
         if let i = state.code.firstIndex(where: { $0.key == cur.key }) {
             state.code[i].oauthAccountJSON = acctJSON
@@ -56,7 +56,7 @@ enum ClaudeCode {
         return p.id
     }
 
-    static func switchTo(_ target: CodeProfile, state: inout State) throws {
+    static func switchTo(_ target: CodeProfile, state: inout AppState) throws {
         try snapshot(into: &state)
 
         guard let tokenStr = Keychain.read(service: switcherKeychainService, account: "code-" + target.id),
@@ -81,7 +81,7 @@ enum ClaudeCode {
         try Data(try jsonString(cfg, pretty: true).utf8).write(to: claudeJSON, options: .atomic)
     }
 
-    static func remove(_ p: CodeProfile, state: inout State) {
+    static func remove(_ p: CodeProfile, state: inout AppState) {
         Keychain.delete(service: switcherKeychainService, account: "code-" + p.id)
         state.code.removeAll { $0.id == p.id }
     }

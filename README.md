@@ -131,7 +131,7 @@ Sources/
 ├── ClaudeDesktop.swift  Desktop profile switching
 ├── UsageAPI.swift       usage + token refresh
 ├── Keychain.swift       /usr/bin/security wrapper
-├── State.swift          saved account list
+├── AppState.swift       saved account list
 └── Constants.swift      paths
 scripts/make-icon.swift  draws the app icon
 ```

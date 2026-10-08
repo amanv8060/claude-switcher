@@ -12,7 +12,7 @@ struct Account: Identifiable {
 /// All app state and actions. The popover and the status item observe it.
 @MainActor
 final class AppModel: ObservableObject {
-    @Published var state: State
+    @Published var state: AppState
     @Published var usage: [String: UsageState] = [:] // CLI profile id → usage
     @Published var plans: [String: String] = [:]      // CLI profile id → "Max 20x"
     @Published var activeKey: String?
@@ -26,7 +26,7 @@ final class AppModel: ObservableObject {
     private var timer: Timer?
 
     init() {
-        state = State.load()
+        state = AppState.load()
         desktopInstalled = ClaudeDesktop.isInstalled
         isPreview = false
         refresh()
@@ -40,7 +40,7 @@ final class AppModel: ObservableObject {
     init(preview: Void) {
         isPreview = true
         desktopInstalled = true
-        var s = State()
+        var s = AppState()
         func code(_ name: String, _ email: String, _ org: String, _ uuid: String) -> CodeProfile {
             CodeProfile(id: uuid, name: name, email: email, org: org, key: "\(uuid)|org", oauthAccountJSON: "{}")
         }

@@ -12,7 +12,7 @@ enum ClaudeDesktop {
 
     /// Registers the live folder as a profile on first run and keeps every
     /// profile's account id current (the user may sign in/out inside Claude).
-    static func sync(_ state: inout State) {
+    static func sync(_ state: inout AppState) {
         guard isInstalled else { return }
         if state.activeDesktopID == nil, fm.fileExists(atPath: desktopLiveDir.path) {
             let p = DesktopProfile(id: UUID().uuidString, name: "Desktop")
@@ -58,7 +58,7 @@ enum ClaudeDesktop {
         }
     }
 
-    static func switchTo(_ target: DesktopProfile, state: inout State) throws {
+    static func switchTo(_ target: DesktopProfile, state: inout AppState) throws {
         guard let active = state.activeDesktopID else { throw SwitcherError("Save the current Desktop login first.") }
         let src = dir(for: target.id)
         guard fm.fileExists(atPath: src.path) else { throw SwitcherError("Stored data for \(target.name) is missing.") }
@@ -74,7 +74,7 @@ enum ClaudeDesktop {
         launch()
     }
 
-    static func addNew(named name: String, state: inout State) throws {
+    static func addNew(named name: String, state: inout AppState) throws {
         guard let active = state.activeDesktopID else { throw SwitcherError("Save the current Desktop login first.") }
         try quit()
         try stashLive(as: active)
@@ -84,7 +84,7 @@ enum ClaudeDesktop {
         launch() // starts with an empty folder → login screen
     }
 
-    static func remove(_ p: DesktopProfile, state: inout State) {
+    static func remove(_ p: DesktopProfile, state: inout AppState) {
         let d = dir(for: p.id)
         if fm.fileExists(atPath: d.path) { try? fm.trashItem(at: d, resultingItemURL: nil) }
         state.desktop.removeAll { $0.id == p.id }

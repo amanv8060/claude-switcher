@@ -15,7 +15,7 @@ struct DesktopProfile: Codable {
     var accountUuid: String? // from the profile's config.json → lastKnownAccountUuid
 }
 
-struct State: Codable {
+struct AppState: Codable {
     var code: [CodeProfile] = []
     var desktop: [DesktopProfile] = []
     var activeDesktopID: String?
@@ -36,9 +36,9 @@ struct State: Codable {
         confirmDesktopSwitch = try c.decodeIfPresent(Bool.self, forKey: .confirmDesktopSwitch) ?? true
     }
 
-    static func load() -> State {
+    static func load() -> AppState {
         guard let d = try? Data(contentsOf: stateFile),
-              let s = try? JSONDecoder().decode(State.self, from: d) else { return State() }
+              let s = try? JSONDecoder().decode(AppState.self, from: d) else { return AppState() }
         return s
     }
 
