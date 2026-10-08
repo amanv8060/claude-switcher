@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.3.0] - 2026-10-09
+
+### Added
+
+- Update checks. Once a day (or from settings) the app looks for a newer release. When one is
+  available, **Update** upgrades it through Homebrew, or opens the release page for other installs.
+  Turn it off with **Check for updates automatically**.
+
+### Changed
+
+- When Claude Code and Claude Desktop are on different accounts, the current account shows where
+  each one is, with a single button that says what it will do. The account Desktop is on is
+  tagged **In Desktop**.
+
 ## [1.2.1] - 2026-10-09
 
 ### Fixed
@@ -60,6 +74,7 @@ First release.
 - Plan names, ⌘1–⌘9 shortcuts, launch at login, and a menu bar label showing the current account
   and its session usage.
 
+[1.3.0]: https://github.com/amanv8060/claude-switcher/releases/tag/v1.3.0
 [1.2.1]: https://github.com/amanv8060/claude-switcher/releases/tag/v1.2.1
 [1.2.0]: https://github.com/amanv8060/claude-switcher/releases/tag/v1.2.0
 [1.1.0]: https://github.com/amanv8060/claude-switcher/releases/tag/v1.1.0
