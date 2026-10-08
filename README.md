@@ -1,56 +1,131 @@
-# cc-switcher
+<div align="center">
 
-A macOS menu bar app for switching between multiple Claude accounts and seeing each one's usage limits.
+<img src="docs/logo.png" width="128" alt="Claude Switcher logo">
+
+# Claude Switcher
+
+**Switch between Claude accounts from your Mac's menu bar — and see how much of each one's usage you have left.**
+
+![macOS 13+](https://img.shields.io/badge/macOS-13%2B-D97757?logo=apple&logoColor=white)
+![Swift](https://img.shields.io/badge/Swift-SwiftUI%20%2B%20AppKit-F05138?logo=swift&logoColor=white)
+![Dependencies](https://img.shields.io/badge/dependencies-none-4C9A6A)
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-dark.png">
+  <img src="docs/screenshot-light.png" width="640" alt="Claude Switcher popover showing three accounts with usage bars">
+</picture>
+
+</div>
 
 ## Features
 
-- **One click switches everywhere.** Each account is listed once. Clicking it switches the
-  Claude Code CLI and then the Claude Desktop app, including its Code tab, which uses the
-  Desktop app's login. Desktop logins are matched to CLI logins automatically by account ID.
-
-- **Claude Code (CLI) accounts.** Switch with one click. Only the Claude login is swapped: the
-  `claudeAiOauth` token in the `Claude Code-credentials` keychain item and `oauthAccount` in
-  `~/.claude.json`. MCP tokens and every other setting stay as they are.
-- **Usage limits for every account.** Shows session (5-hour) and weekly utilization, plus
-  Opus/Sonnet weekly limits when your plan has them, with reset times. The data comes from the
-  same endpoint as Claude Code's `/usage` and refreshes every 5 minutes. The active account's
-  session % is shown in the menu bar.
-- **Claude Desktop accounts.** Each account keeps its own copy of
-  `~/Library/Application Support/Claude`. A switch quits Claude, swaps the folder (a rename) and
-  relaunches it.
-- Saved logins live in your login keychain (service `ClaudeSwitcher`), never in plain files.
+- **One click switches everywhere.** Clicking an account switches the Claude Code CLI right away,
+  then switches the Claude Desktop app (and its Code tab) to the same account.
+- **Usage limits for every account.** Each account shows its session (5-hour) and weekly limits,
+  plus Opus and Sonnet weekly limits on plans that have them, with reset times. You can see which
+  account has room left without switching.
+- **Usage in the menu bar.** The menu bar shows the active account and its session usage, for
+  example `Personal · 34%`.
+- **No extra sign-in.** Desktop logins are matched to CLI logins automatically by account ID.
+- **Logins stay in the keychain.** Saved logins are kept in your macOS keychain, never in plain
+  files. MCP connector logins and other Claude Code settings aren't changed by a switch.
+- **Small and native.** It's a single native app, about 1 MB, with no dependencies, and it
+  starts at login.
 
 ## Install
 
-Requires macOS 13+ and Xcode command line tools.
+Requires macOS 13 or later and the Xcode command line tools.
 
 ```bash
-./build.sh
-cp -R "build/Claude Switcher.app" ~/Applications/
-open ~/Applications/"Claude Switcher.app"
+git clone git@github.com:amanv8060/cc-switcher.git
+cd cc-switcher
+./build.sh --install
 ```
 
-Turn on **Manage → Launch at login** if you want it to start automatically.
+This builds the app, copies it to `~/Applications/Claude Switcher.app`, turns on launch at login
+and opens it. Run `./build.sh` on its own to build into `./build` without installing.
 
-## Usage
+## Using it
 
-**Add a Claude Code account:** choose **Add account…**. Your current login is saved, then
-Terminal runs `claude auth login`. Sign in with the other account and it shows up in the menu.
-Click an account to switch. Restart any `claude` sessions that were already running.
+| To… | Do this |
+| --- | --- |
+| Add an account | **Add account** → sign in with `claude auth login` in the Terminal window that opens. |
+| Switch | Click the account's card. |
+| Set up Claude Desktop for an account | Switch to it once. If it has never signed in to Desktop, you'll be offered to set it up. |
+| Rename or remove | Right-click a card. |
+| Settings | Click the gear icon (menu bar text, confirmations, launch at login). |
 
-> Don't use `claude auth logout` to change accounts. It can revoke the saved login.
+> [!IMPORTANT]
+> Don't use `claude auth logout` to change accounts. Logging out can revoke the saved login.
+> Use **Add account** instead.
 
-The first time you switch to an account that has never signed in to Claude Desktop, the app
-offers to set that up: Claude reopens signed out, you sign in, and the login is linked to that
-account from then on. Switching Desktop accounts restarts Claude, which stops chats and Code
-sessions running in it. You're asked first unless you turn that off under **Manage**.
-**Manage → Add Claude Desktop login…** adds a Desktop-only account.
+The badges on each card show where that account is active:
+<kbd>● CLI</kbd> means the Claude Code CLI is using it, and <kbd>● Desktop</kbd> means the
+Claude Desktop app is using it.
 
-## Notes
+## How it works
 
-- Claude Code rotates refresh tokens. The switcher re-saves the active login before every switch
-  and whenever the menu opens. When it refreshes an expired token to read usage, it writes the
-  new token back everywhere that token is stored.
-- `~/.claude.json` is backed up to `~/.claude.json.switcher-backup` before each switch.
-- Self-test (read-only unless the token has expired): `"build/Claude Switcher.app/Contents/MacOS/ClaudeSwitcher" --selftest --usage`
-- This isn't an official Anthropic tool. It relies on undocumented internals that may change.
+<details>
+<summary><b>Claude Code CLI</b></summary>
+
+Claude Code keeps its login in the keychain item `Claude Code-credentials` and its account info
+in `~/.claude.json` (`oauthAccount`). A switch replaces only the `claudeAiOauth` login and
+`oauthAccount`. Everything else stays as it is, including MCP logins and settings.
+
+Claude Code issues a new refresh token each time it refreshes a login, so the switcher re-saves
+the current login before every switch and whenever the popover opens. `~/.claude.json` is backed
+up to `~/.claude.json.switcher-backup` before each write. Claude Code sessions that are already
+running keep the old account until you restart them.
+</details>
+
+<details>
+<summary><b>Claude Desktop</b></summary>
+
+Each account keeps its own copy of `~/Library/Application Support/Claude`. A switch quits Claude,
+renames the folders (which is instant) and reopens Claude. The Desktop Code tab uses the Desktop
+app's login, so it switches along with the app. Accounts are paired using `lastKnownAccountUuid`
+in Claude's `config.json`.
+
+Switching Desktop accounts stops any chats or Code sessions running in Claude Desktop. Each
+account's data folder uses its own disk space.
+</details>
+
+<details>
+<summary><b>Usage limits</b></summary>
+
+Usage comes from `api.anthropic.com/api/oauth/usage`, the same endpoint as Claude Code's `/usage`
+command. It refreshes every 5 minutes. If a saved login has expired, the app refreshes it and
+saves the new login.
+</details>
+
+## Development
+
+```
+Sources/
+├── main.swift           entry point + CLI flags
+├── AppDelegate.swift    status item, popover, settings menu, menu bar icon
+├── AppModel.swift       state + actions shared by the UI
+├── Views.swift          SwiftUI popover
+├── ClaudeCode.swift     CLI login switching
+├── ClaudeDesktop.swift  Desktop profile switching
+├── UsageAPI.swift       usage + token refresh
+├── Keychain.swift       /usr/bin/security wrapper
+├── State.swift          saved account list
+└── Constants.swift      paths
+scripts/make-icon.swift  draws the app icon
+```
+
+Useful flags (run the binary inside the app):
+
+```bash
+APP="build/Claude Switcher.app/Contents/MacOS/ClaudeSwitcher"
+"$APP" --selftest --usage      # print the detected account and its usage
+"$APP" --render-preview docs   # regenerate the README screenshots with sample data
+"$APP" --login-item on|off     # turn launch at login on or off
+```
+
+To redraw the icon, delete `Resources/AppIcon.icns` and run `./build.sh`.
+
+---
+
+<sub>Not affiliated with or endorsed by Anthropic. This app relies on undocumented parts of Claude Code and Claude Desktop that may change.</sub>
