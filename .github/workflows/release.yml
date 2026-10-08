@@ -10,6 +10,9 @@ permissions:
 jobs:
   release:
     runs-on: macos-15
+    env:
+      # Fine-grained token with write access to amanv8060/homebrew-tap.
+      TAP_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -25,5 +28,19 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Notes are this version's section of CHANGELOG.md.
+          awk -v v="${GITHUB_REF_NAME#v}" '$0 ~ "^## \\[" v "\\]" {on=1; next} /^## \[/ {on=0} /^\[.*\]: / {on=0} on' CHANGELOG.md > notes.md
           gh release create "$GITHUB_REF_NAME" build/Claude-Switcher-*.zip* \
-            --title "Claude Switcher $GITHUB_REF_NAME" --generate-notes
+            --title "Claude Switcher $GITHUB_REF_NAME" --notes-file notes.md
+      - name: Update Homebrew cask
+        if: ${{ env.TAP_TOKEN != '' }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          SHA=$(shasum -a 256 "build/Claude-Switcher-${GITHUB_REF_NAME}.zip" | cut -d' ' -f1)
+          git clone "https://x-access-token:${TAP_TOKEN}@github.com/amanv8060/homebrew-tap.git" tap
+          cd tap
+          sed -i '' -E "s/^  version \".*\"/  version \"${VERSION}\"/; s/^  sha256 \".*\"/  sha256 \"${SHA}\"/" Casks/claude-switcher.rb
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore: update claude-switcher to ${VERSION}"
+          git push
