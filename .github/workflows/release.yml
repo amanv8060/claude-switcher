@@ -1,0 +1,29 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build
+        run: ./build.sh
+      - name: Package
+        run: |
+          cd build
+          ditto -c -k --keepParent "Claude Switcher.app" "Claude-Switcher-${GITHUB_REF_NAME}.zip"
+          shasum -a 256 "Claude-Switcher-${GITHUB_REF_NAME}.zip" > "Claude-Switcher-${GITHUB_REF_NAME}.zip.sha256"
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" build/Claude-Switcher-*.zip* \
+            --title "Claude Switcher $GITHUB_REF_NAME" --generate-notes

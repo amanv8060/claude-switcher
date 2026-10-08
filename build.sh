@@ -4,6 +4,8 @@
 #   ./build.sh --install  also install to ~/Applications, enable launch at login and relaunch
 set -euo pipefail
 cd "$(dirname "$0")"
+VERSION="$(cat VERSION)"
+BUILD="$(git rev-list --count HEAD 2>/dev/null || echo 1)"
 APP="build/Claude Switcher.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
@@ -26,8 +28,9 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleIdentifier</key><string>dev.local.claude-switcher</string>
   <key>CFBundleExecutable</key><string>ClaudeSwitcher</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>1.0</string>
-  <key>CFBundleVersion</key><string>1</string>
+  <key>CFBundleShortVersionString</key><string>$VERSION</string>
+  <key>CFBundleVersion</key><string>$BUILD</string>
+  <key>NSHumanReadableCopyright</key><string>MIT License</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>LSUIElement</key><true/>

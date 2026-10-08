@@ -7,7 +7,31 @@ enum ClaudeAPI {
     static let clientID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
     static let userAgent = "claude-cli/2.0.0 (external, cli)" // default UAs get blocked by Cloudflare
 
-    struct Window { let label: String; let utilization: Double; let resetsAt: Date? }
+    struct Window {
+        let label: String
+        let utilization: Double // 0–100
+        let resetsAt: Date?
+
+        /// How long this limit's window lasts.
+        var length: TimeInterval { label == "Session" ? 5 * 3600 : 7 * 86400 }
+
+        /// Fraction of the window that has passed (0–1), used to show pace.
+        var elapsed: Double? {
+            guard let r = resetsAt else { return nil }
+            return min(max(1 - r.timeIntervalSinceNow / length, 0), 1)
+        }
+    }
+
+    /// "Max 20x", "Pro", … from the token's subscription fields.
+    static func planName(_ oauth: [String: Any]) -> String? {
+        let sub = (oauth["subscriptionType"] as? String)?.lowercased() ?? ""
+        let tier = (oauth["rateLimitTier"] as? String)?.lowercased() ?? ""
+        switch sub {
+        case "max": return tier.contains("20x") ? "Max 20x" : tier.contains("5x") ? "Max 5x" : "Max"
+        case "": return nil
+        default: return sub.prefix(1).uppercased() + sub.dropFirst()
+        }
+    }
 
     static func isExpired(_ oauth: [String: Any]) -> Bool {
         guard let ms = (oauth["expiresAt"] as? NSNumber)?.doubleValue else { return true }

@@ -21,9 +21,15 @@
 
 - **One click switches everywhere.** Clicking an account switches the Claude Code CLI right away,
   then switches the Claude Desktop app (and its Code tab) to the same account.
-- **Usage limits for every account.** Each account shows its session (5-hour) and weekly limits,
-  plus Opus and Sonnet weekly limits on plans that have them, with reset times. You can see which
-  account has room left without switching.
+- **Usage limits for every account.** The active account shows its session (5-hour) and weekly
+  limits as ring gauges. Other accounts show theirs as bars, including Opus and Sonnet weekly
+  limits on plans that have them, with reset times.
+- **Smart switch.** Points you to the account with the most room left, judged by whichever of
+  its limits is closer to running out, and switches to it in one click.
+- **Pace.** A tick on each gauge marks how much of that limit's time window has passed, so you can
+  see whether you're using it faster or slower than time is passing.
+- **Plan badges and shortcuts.** Badges show Pro, Max 5x or Max 20x. ⌘1–⌘9 switch accounts while
+  the popover is open.
 - **Usage in the menu bar.** The menu bar shows the active account and its session usage, for
   example `Personal · 34%`.
 - **No extra sign-in.** Desktop logins are matched to CLI logins automatically by account ID.
@@ -33,6 +39,21 @@
   starts at login.
 
 ## Install
+
+### Download
+
+Get the latest `Claude-Switcher-vX.Y.Z.zip` from
+[Releases](https://github.com/amanv8060/cc-switcher/releases), unzip it, and move
+**Claude Switcher.app** to `~/Applications` or `/Applications`.
+
+The app isn't notarized yet, so macOS will block it the first time you open it. Right-click the
+app and choose **Open**, or run:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Claude Switcher.app"
+```
+
+### Build from source
 
 Requires macOS 13 or later and the Xcode command line tools.
 
@@ -50,7 +71,7 @@ and opens it. Run `./build.sh` on its own to build into `./build` without instal
 | To… | Do this |
 | --- | --- |
 | Add an account | **Add account** → sign in with `claude auth login` in the Terminal window that opens. |
-| Switch | Click the account's card. |
+| Switch | Click the account's card, press ⌘1–⌘9, or use **Smart switch**. |
 | Set up Claude Desktop for an account | Switch to it once. If it has never signed in to Desktop, you'll be offered to set it up. |
 | Rename or remove | Right-click a card. |
 | Settings | Click the gear icon (menu bar text, confirmations, launch at login). |
@@ -115,6 +136,9 @@ Sources/
 scripts/make-icon.swift  draws the app icon
 ```
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines and [SECURITY.md](SECURITY.md) for what
+the app does with your data.
+
 Useful flags (run the binary inside the app):
 
 ```bash
@@ -128,4 +152,4 @@ To redraw the icon, delete `Resources/AppIcon.icns` and run `./build.sh`.
 
 ---
 
-<sub>Not affiliated with or endorsed by Anthropic. This app relies on undocumented parts of Claude Code and Claude Desktop that may change.</sub>
+<sub>MIT licensed · Not affiliated with or endorsed by Anthropic. This app relies on undocumented parts of Claude Code and Claude Desktop that may change.</sub>

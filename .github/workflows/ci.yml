@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build universal app
+        run: ./build.sh
+      - name: Check the app bundle
+        run: |
+          APP="build/Claude Switcher.app"
+          lipo -info "$APP/Contents/MacOS/ClaudeSwitcher"
+          codesign --verify --verbose "$APP"
+          plutil -lint "$APP/Contents/Info.plist"

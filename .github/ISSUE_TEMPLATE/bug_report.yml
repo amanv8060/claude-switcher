@@ -1,0 +1,36 @@
+name: Bug report
+description: Something isn't working
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! **Never paste tokens, keychain contents or your `~/.claude.json`.**
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [Switching (Claude Code CLI), Switching (Claude Desktop), Usage limits, Menu bar / UI, Install / build, Other]
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: macOS, Claude Switcher, `claude --version`, Claude Desktop
+      placeholder: macOS 26.1 · Claude Switcher 1.1.0 · Claude Code 2.x · Claude Desktop 1.x
+    validations:
+      required: true
+  - type: textarea
+    id: selftest
+    attributes:
+      label: Self-test output
+      description: Output of `"/Applications/Claude Switcher.app/Contents/MacOS/ClaudeSwitcher" --selftest` (it prints no secrets — check before pasting).
+      render: text

@@ -14,6 +14,7 @@ struct Account: Identifiable {
 final class AppModel: ObservableObject {
     @Published var state: State
     @Published var usage: [String: UsageState] = [:] // CLI profile id → usage
+    @Published var plans: [String: String] = [:]      // CLI profile id → "Max 20x"
     @Published var activeKey: String?
     @Published var lastUsageFetch = Date.distantPast
     @Published var busy = false
@@ -55,8 +56,9 @@ final class AppModel: ObservableObject {
         func w(_ l: String, _ u: Double, _ h: Double) -> ClaudeAPI.Window {
             .init(label: l, utilization: u, resetsAt: now.addingTimeInterval(h * 3600))
         }
+        plans = ["u1": "Max 20x", "u2": "Pro"]
         usage = ["u1": .ok([w("Session", 34, 2.2), w("Week", 61, 70)], now),
-                 "u2": .ok([w("Session", 88, 0.6), w("Week", 47, 120), w("Week · Opus", 12, 120)], now)]
+                 "u2": .ok([w("Session", 18, 4.1), w("Week", 27, 120), w("Week · Opus", 12, 120)], now)]
     }
 
     // MARK: Derived
@@ -89,6 +91,26 @@ final class AppModel: ObservableObject {
             return c.name == c.email ? (org.isEmpty ? "Claude Code" : String(org.dropFirst(3))) : c.email + org
         }
         return a.desktop?.accountUuid == nil ? "Claude Desktop · signed out" : "Claude Desktop only"
+    }
+
+    /// The account shown large at the top: the CLI's, else the Desktop app's.
+    var hero: Account? { accounts.first(where: isCLIActive) ?? accounts.first(where: isDesktopActive) }
+    var others: [Account] { accounts.filter { $0.id != hero?.id } }
+    var isLoadingUsage: Bool { usage.values.contains { if case .loading = $0 { return true } else { return false } } }
+
+    /// Headroom left on an account: the tighter of its session and weekly limits (0–100).
+    func remaining(_ a: Account) -> Double? {
+        guard let id = a.code?.id, case .ok(let w, _) = usage[id] else { return nil }
+        let used = w.filter { $0.label == "Session" || $0.label == "Week" }.map(\.utilization)
+        return used.isEmpty ? nil : 100 - (used.max() ?? 0)
+    }
+
+    /// The account with the most headroom, if it beats the current one by a useful margin.
+    var smartPick: (account: Account, remaining: Double)? {
+        let scored = accounts.compactMap { a in remaining(a).map { (account: a, remaining: $0) } }
+        guard let best = scored.max(by: { $0.remaining < $1.remaining }), best.account.id != hero?.id else { return nil }
+        let current = hero.flatMap(remaining) ?? 0
+        return best.remaining - current >= 10 ? best : nil
     }
 
     func sessionPercent(_ id: String) -> Double? {
@@ -133,6 +155,7 @@ final class AppModel: ObservableObject {
                 windows = try await ClaudeAPI.usage(token: oauth["accessToken"] as? String ?? "")
             }
             usage[p.id] = .ok(windows, Date())
+            plans[p.id] = ClaudeAPI.planName(oauth)
         } catch {
             usage[p.id] = .failed(error.localizedDescription)
         }
