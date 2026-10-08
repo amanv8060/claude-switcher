@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-10-09
+
+### Added
+
+- Claude Desktop Code and agent sessions are kept in sync across Desktop profiles, so switching
+  accounts no longer hides history that was saved in another profile.
+- A warning when a Desktop profile gets signed in to a different account than the one it was set
+  up for, with options to keep the new account or rename the profile.
+
+### Fixed
+
+- Only the Desktop profile that's actually in use shows as active. Previously, two profiles signed
+  in to the same account could both look current, hiding the one that held your sessions.
+
 ## [1.0.1] - 2026-10-09
 
 ### Added
@@ -25,5 +39,6 @@ First release.
 - Plan names, ⌘1–⌘9 shortcuts, launch at login, and a menu bar label showing the current account
   and its session usage.
 
+[1.1.0]: https://github.com/amanv8060/claude-switcher/releases/tag/v1.1.0
 [1.0.1]: https://github.com/amanv8060/claude-switcher/releases/tag/v1.0.1
 [1.0.0]: https://github.com/amanv8060/claude-switcher/releases/tag/v1.0.0
