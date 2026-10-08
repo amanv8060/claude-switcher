@@ -161,16 +161,6 @@ enum PreviewRenderer {
             try? rep.representation(using: .png, properties: [:])?
                 .write(to: dir.appendingPathComponent("screenshot-\(name).png"))
         }
-        // Menu bar icon at 8× so it can be inspected.
-        let k: CGFloat = 8
-        let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(18 * k), pixelsHigh: Int(18 * k),
-                                   bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
-                                   colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
-        NSGraphicsContext.saveGraphicsState()
-        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
-        StatusIcon.draw(scale: k)
-        NSGraphicsContext.restoreGraphicsState()
-        try? rep.representation(using: .png, properties: [:])?.write(to: dir.appendingPathComponent("status-icon.png"))
     }
 }
 
