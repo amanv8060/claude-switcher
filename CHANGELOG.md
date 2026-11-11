@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.3.1] - 2026-11-11
+
+### Fixed
+
+- An expired Claude Code (CLI) login showed as "Login expired", even though Claude Desktop, which
+  has its own login, kept working. The popover now says the CLI needs signing in, notes that
+  Desktop isn't affected, and offers **Sign in to Claude Code**.
+- A `claude` session still running on one account could overwrite another account's saved login
+  when it renewed. Saved logins are now checked against Anthropic to confirm which account they
+  belong to, and are moved to the right account if needed. Switching also warns when `claude`
+  sessions are running in Terminal.
+- A saved login that can be renewed is no longer replaced by one that can't.
+
 ## [1.3.0] - 2026-10-09
 
 ### Added
@@ -74,6 +87,7 @@ First release.
 - Plan names, ⌘1–⌘9 shortcuts, launch at login, and a menu bar label showing the current account
   and its session usage.
 
+[1.3.1]: https://github.com/amanv8060/claude-switcher/releases/tag/v1.3.1
 [1.3.0]: https://github.com/amanv8060/claude-switcher/releases/tag/v1.3.0
 [1.2.1]: https://github.com/amanv8060/claude-switcher/releases/tag/v1.2.1
 [1.2.0]: https://github.com/amanv8060/claude-switcher/releases/tag/v1.2.0
