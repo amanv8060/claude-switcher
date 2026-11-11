@@ -44,7 +44,7 @@ final class AppModel: ObservableObject {
     /// Sample data for `--render-preview`; touches nothing on disk. With
     /// `outOfSync`, Claude Code is on a newly added account while Desktop is
     /// still on another one.
-    init(preview: Void, outOfSync: Bool = false, updateAvailable: Bool = false) {
+    init(preview: Void, outOfSync: Bool = false, updateAvailable: Bool = false, signedOut: Bool = false) {
         isPreview = true
         desktopInstalled = true
         var s = AppState()
@@ -69,6 +69,7 @@ final class AppModel: ObservableObject {
         plans = ["u1": "Max 20x", "u2": "Pro"]
         usage = ["u1": .ok([w("Session", 34, 2.2), w("Week", 61, 70)], now),
                  "u2": .ok([w("Session", 18, 4.1), w("Week", 27, 120), w("Week · Opus", 12, 120)], now)]
+        if signedOut { usage = ["u1": .signInNeeded, "u2": .signInNeeded] }
     }
 
     // MARK: Derived
@@ -87,6 +88,11 @@ final class AppModel: ObservableObject {
 
     var activeDesktopUuid: String? { state.desktop.first { $0.id == state.activeDesktopID }?.accountUuid }
     var activeCode: CodeProfile? { state.code.first { $0.key == activeKey } }
+
+    func needsSignIn(_ a: Account) -> Bool {
+        if let id = a.code?.id, case .signInNeeded = usage[id] { return true }
+        return false
+    }
 
     func isCLIActive(_ a: Account) -> Bool { a.code != nil && a.code?.key == activeKey }
     /// Only the profile that's actually live counts, even if another profile is
@@ -224,23 +230,42 @@ final class AppModel: ObservableObject {
         }
     }
 
+    private var verifiedTokens: Set<String> = []
+
     private func fetchUsage(_ p: CodeProfile, active: Bool) async {
         do {
-            guard var oauth = ClaudeCode.oauth(for: p, active: active) else { throw SwitcherError("No saved login") }
+            guard var oauth = ClaudeCode.oauth(for: p, active: active) else { throw LoginExpired() }
             if ClaudeAPI.isExpired(oauth) {
+                guard oauth["refreshToken"] != nil else { throw LoginExpired() }
                 oauth = try await ClaudeAPI.refresh(oauth)
                 try ClaudeCode.saveOAuth(oauth, for: p, active: active)
             }
+            // Make sure this login really belongs to `p` before trusting it.
+            let token = oauth["accessToken"] as? String ?? ""
+            if !verifiedTokens.contains(token), let owner = try? await ClaudeAPI.owner(of: token) {
+                verifiedTokens.insert(token)
+                if "\(owner.accountUuid)|\(owner.orgUuid)" != p.key {
+                    try ClaudeCode.refile(oauth, from: p, to: owner, live: active, state: &state)
+                    state.save()
+                    usage[p.id] = .signInNeeded
+                    activeKey = ClaudeCode.current()?.key
+                    refreshUsage()
+                    return
+                }
+            }
             var windows: [ClaudeAPI.Window]
             do {
-                windows = try await ClaudeAPI.usage(token: oauth["accessToken"] as? String ?? "")
+                windows = try await ClaudeAPI.usage(token: token)
             } catch let e as SwitcherError where e.message == "unauthorized" {
+                guard oauth["refreshToken"] != nil else { throw LoginExpired() }
                 oauth = try await ClaudeAPI.refresh(oauth)
                 try ClaudeCode.saveOAuth(oauth, for: p, active: active)
                 windows = try await ClaudeAPI.usage(token: oauth["accessToken"] as? String ?? "")
             }
             usage[p.id] = .ok(windows, Date())
             plans[p.id] = ClaudeAPI.planName(oauth)
+        } catch is LoginExpired {
+            usage[p.id] = .signInNeeded
         } catch {
             usage[p.id] = .failed(error.localizedDescription)
         }
@@ -251,6 +276,14 @@ final class AppModel: ObservableObject {
     /// Switches the CLI immediately, then brings Claude Desktop (and its Code tab) to the same account.
     func switchTo(_ a: Account) {
         guard !isPreview else { return }
+        if let c = a.code, c.key != ClaudeCode.current()?.key {
+            let running = ClaudeCode.runningTerminalSessions()
+            if running > 0, !confirm("\(running) Claude Code session\(running == 1 ? " is" : "s are") running in Terminal",
+                                     "They keep using \(activeCode?.email ?? "the current account") until you restart them. When one renews its login it can overwrite \(c.email)'s, and you'd have to sign in again.\n\nQuit those sessions first, or switch anyway.",
+                                     "Switch Anyway") {
+                return
+            }
+        }
         perform {
             if let c = a.code, c.key != ClaudeCode.current()?.key {
                 try ClaudeCode.switchTo(c, state: &state)
@@ -312,6 +345,16 @@ final class AppModel: ObservableObject {
             var err: NSDictionary?
             NSAppleScript(source: script)?.executeAndReturnError(&err)
             if let err { throw SwitcherError("Couldn't open Terminal: \(err)") }
+        }
+    }
+
+    /// Re-signs the Claude Code CLI into this account (the CLI then uses it).
+    func signIn(_ a: Account) {
+        guard !isPreview else { return }
+        perform {
+            try ClaudeCode.snapshot(into: &state)
+            dismissPopover()
+            try ClaudeCode.signIn(email: a.code?.email)
         }
     }
 

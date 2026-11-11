@@ -52,7 +52,7 @@ enum ClaudeAPI {
         ])
         let (data, resp) = try await URLSession.shared.data(for: req)
         let status = (resp as? HTTPURLResponse)?.statusCode ?? 0
-        if status == 400 || status == 401 { throw SwitcherError("Login expired — log in to this account again") }
+        if status == 400 || status == 401 { throw LoginExpired() }
         guard status == 200,
               let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let access = obj["access_token"] as? String,
@@ -119,5 +119,31 @@ extension ClaudeCode {
 enum UsageState {
     case loading
     case ok([ClaudeAPI.Window], Date)
+    case signInNeeded // the CLI login for this account can't be used or renewed
     case failed(String)
+}
+
+/// The saved CLI login can't be renewed; signing in again is the only fix.
+struct LoginExpired: Error {}
+
+extension ClaudeAPI {
+    struct Owner { let accountUuid: String; let orgUuid: String; let email: String; let displayName: String?; let orgName: String? }
+
+    /// Who a token belongs to (the same endpoint Claude Code uses after login).
+    static func owner(of token: String) async throws -> Owner {
+        var req = URLRequest(url: URL(string: "https://api.anthropic.com/api/oauth/profile")!)
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        let status = (resp as? HTTPURLResponse)?.statusCode ?? 0
+        if status == 401 { throw LoginExpired() }
+        guard status == 200, let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let account = obj["account"] as? [String: Any], let org = obj["organization"] as? [String: Any],
+              let accountUuid = account["uuid"] as? String, let orgUuid = org["uuid"] as? String else {
+            throw SwitcherError("Couldn't look up the account (HTTP \(status))")
+        }
+        return Owner(accountUuid: accountUuid, orgUuid: orgUuid, email: account["email"] as? String ?? "",
+                     displayName: account["display_name"] as? String, orgName: org["name"] as? String)
+    }
 }

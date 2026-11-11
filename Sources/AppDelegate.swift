@@ -158,9 +158,9 @@ enum StatusIcon {
 /// `--render-preview <dir>` writes screenshots of the UI with sample data.
 @MainActor
 enum PreviewRenderer {
-    static func run(into dir: URL, outOfSync: Bool = false, updateAvailable: Bool = false) {
+    static func run(into dir: URL, outOfSync: Bool = false, updateAvailable: Bool = false, signedOut: Bool = false) {
         try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
-        let model = AppModel(preview: (), outOfSync: outOfSync, updateAvailable: updateAvailable)
+        let model = AppModel(preview: (), outOfSync: outOfSync, updateAvailable: updateAvailable, signedOut: signedOut)
         for (scheme, name) in [(ColorScheme.light, "light"), (.dark, "dark")] {
             let view = PreviewScene(model: model).environment(\.colorScheme, scheme)
             let r = ImageRenderer(content: view)

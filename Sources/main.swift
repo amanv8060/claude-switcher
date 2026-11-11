@@ -50,7 +50,8 @@ if let i = CommandLine.arguments.firstIndex(of: "--render-preview") {
     let outOfSync = CommandLine.arguments.contains("--out-of-sync")
     let update = CommandLine.arguments.contains("--update-available")
     MainActor.assumeIsolated {
-        PreviewRenderer.run(into: URL(fileURLWithPath: dir), outOfSync: outOfSync, updateAvailable: update)
+        PreviewRenderer.run(into: URL(fileURLWithPath: dir), outOfSync: outOfSync, updateAvailable: update,
+                            signedOut: CommandLine.arguments.contains("--signed-out"))
     }
     exit(0)
 }

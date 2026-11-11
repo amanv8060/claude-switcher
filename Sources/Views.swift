@@ -173,6 +173,8 @@ struct CurrentAccount: View {
                 VStack(spacing: 10) { ForEach(windows, id: \.label) { UsageLine(window: $0, large: true) } }
             case .ok:
                 Note(text: "No usage limits reported for this plan")
+            case .signInNeeded:
+                SignInNeeded(model: model, account: account, compact: false)
             case .failed(let msg):
                 Note(text: msg, warning: true)
             case .loading, nil:
@@ -184,7 +186,9 @@ struct CurrentAccount: View {
     }
 
     @ViewBuilder private var activeIn: some View {
-        let cli = model.isCLIActive(account), desktop = model.isDesktopActive(account)
+        let desktop = model.isDesktopActive(account)
+        // A dead CLI login isn't "active"; the note above already explains it.
+        let cli = model.isCLIActive(account) && !model.needsSignIn(account)
         if model.desktopInstalled && cli && !desktop && account.code != nil {
             outOfSync
         } else {
@@ -224,6 +228,37 @@ struct CurrentAccount: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+    }
+}
+
+// MARK: - CLI sign-in needed
+
+/// The saved Claude Code (CLI) login for this account can't be used or renewed.
+/// Claude Desktop has its own login, so it isn't affected.
+struct SignInNeeded: View {
+    @ObservedObject var model: AppModel
+    let account: Account
+    let compact: Bool
+
+    var body: some View {
+        let cliHere = model.isCLIActive(account)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Image(systemName: "person.crop.circle.badge.exclamationmark").foregroundStyle(Color.warn)
+                Text(compact ? "Claude Code isn't signed in to this account, so usage can't load."
+                             : "Claude Code (the CLI) isn't signed in to this account, so usage can't load. Claude Desktop has its own login and isn't affected.")
+                    .foregroundStyle(Color.text2).fixedSize(horizontal: false, vertical: true)
+            }
+            HStack(spacing: 8) {
+                Button("Sign in to Claude Code") { model.signIn(account) }
+                    .buttonStyle(.plain).fontWeight(.semibold).foregroundStyle(Color.brand)
+                    .help(cliHere ? "Opens Terminal to sign in." : "Opens Terminal to sign in. Claude Code switches to this account.")
+                if !compact { Text("Opens Terminal.").foregroundStyle(Color.text3) }
+            }
+            .padding(.leading, 20)
+        }
+        .font(.system(size: 11.5))
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -352,6 +387,8 @@ struct AccountRow: View {
                 VStack(spacing: 6) { ForEach(windows, id: \.label) { UsageLine(window: $0, large: false) } }
             case .ok:
                 Note(text: "No usage limits reported")
+            case .signInNeeded:
+                SignInNeeded(model: model, account: account, compact: true)
             case .failed(let msg):
                 Note(text: msg, warning: true)
             case .loading, nil:

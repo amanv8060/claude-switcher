@@ -37,9 +37,72 @@ enum ClaudeCode {
     @discardableResult
     static func snapshot(into state: inout AppState) throws -> String? {
         guard let cur = current() else { return nil }
-        try Keychain.write(service: switcherKeychainService, account: "code-" + profileID(for: cur, in: &state),
-                           value: try jsonString(cur.claudeAiOauth))
-        return state.code.first { $0.key == cur.key }?.id
+        let id = try profileID(for: cur, in: &state)
+        // Never replace a saved login that can be renewed with one that can't.
+        let live = cur.claudeAiOauth as? [String: Any]
+        let saved = Keychain.read(service: switcherKeychainService, account: "code-" + id).flatMap(parseJSONObject)
+        if live?["refreshToken"] == nil, saved?["refreshToken"] != nil { return id }
+        try Keychain.write(service: switcherKeychainService, account: "code-" + id, value: try jsonString(cur.claudeAiOauth))
+        return id
+    }
+
+    /// A token filed under the wrong account (for example, written by a session
+    /// that was still running on another account) is moved to its real owner,
+    /// creating that account if needed. Returns the owner's profile id.
+    @discardableResult
+    static func refile(_ oauth: [String: Any], from wrong: CodeProfile, to owner: ClaudeAPI.Owner,
+                       live: Bool, state: inout AppState) throws -> String {
+        let key = "\(owner.accountUuid)|\(owner.orgUuid)"
+        let id: String
+        if let p = state.code.first(where: { $0.key == key }) {
+            id = p.id
+        } else {
+            let acct: [String: Any] = ["accountUuid": owner.accountUuid, "emailAddress": owner.email,
+                                       "organizationUuid": owner.orgUuid, "displayName": owner.displayName ?? "",
+                                       "organizationName": owner.orgName ?? ""]
+            let p = CodeProfile(id: UUID().uuidString, name: owner.email, email: owner.email,
+                                org: owner.orgName ?? "", key: key, oauthAccountJSON: try jsonString(acct))
+            state.code.append(p)
+            id = p.id
+        }
+        try Keychain.write(service: switcherKeychainService, account: "code-" + id, value: try jsonString(oauth))
+        // Drop the misfiled copy from the wrong account, but only if it's this same token.
+        let misfiled = Keychain.read(service: switcherKeychainService, account: "code-" + wrong.id).flatMap(parseJSONObject)
+        if misfiled?["accessToken"] as? String == oauth["accessToken"] as? String {
+            Keychain.delete(service: switcherKeychainService, account: "code-" + wrong.id)
+        }
+        // The CLI is really signed in as the owner: make ~/.claude.json agree.
+        if live, let p = state.code.first(where: { $0.id == id }), let acct = parseJSONObject(p.oauthAccountJSON) {
+            var cfg = try readClaudeJSON()
+            cfg["oauthAccount"] = acct
+            try Data(try jsonString(cfg, pretty: true).utf8).write(to: claudeJSON, options: .atomic)
+        }
+        return id
+    }
+
+    /// `claude` sessions running in a terminal. They keep their account in memory
+    /// and write refreshed tokens back to the shared keychain item, so switching
+    /// under them can overwrite the new account's login.
+    static func runningTerminalSessions() -> Int {
+        let r = run("/bin/ps", ["-axo", "tty=,args="])
+        return r.out.split(separator: "\n").filter { line in
+            let parts = line.split(separator: " ", maxSplits: 1)
+            guard parts.count == 2, parts[0] != "??" else { return false }
+            let exe = parts[1].split(separator: " ").first.map(String.init) ?? ""
+            return exe == "claude" || exe.hasSuffix("/claude") || exe.contains("/.local/share/claude/versions/")
+        }.count
+    }
+
+    /// Opens Terminal on `claude auth login`, pre-filled with the account's email.
+    static func signIn(email: String?) throws {
+        guard let cli = cliPath() else { throw SwitcherError("Claude Code isn't installed. Install it with: \(installCommand)") }
+        var command = "'\(cli.replacingOccurrences(of: "'", with: "'\\''"))' auth login"
+        if let email, !email.isEmpty { command += " --email '\(email.replacingOccurrences(of: "'", with: "'\\''"))'" }
+        let escaped = command.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+        var err: NSDictionary?
+        NSAppleScript(source: "tell application \"Terminal\"\n activate\n do script \"\(escaped)\"\nend tell")?
+            .executeAndReturnError(&err)
+        if let err { throw SwitcherError("Couldn't open Terminal: \(err)") }
     }
 
     private static func profileID(for cur: Current, in state: inout AppState) throws -> String {
